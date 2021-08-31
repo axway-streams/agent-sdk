@@ -21,7 +21,7 @@ var (
 )
 
 const (
-	AssetRequestScope = "Asset"
+	AssetRequestScope = "AssetRelease"
 
 	AssetRequestResourceName = "assetrequests"
 )
@@ -40,9 +40,13 @@ type AssetRequest struct {
 
 	Owner *apiv1.Owner `json:"owner"`
 
+	References AssetRequestReferences `json:"references"`
+
 	Spec AssetRequestSpec `json:"spec"`
 
 	State AssetRequestState `json:"state"`
+
+	Status AssetRequestStatus `json:"status"`
 }
 
 // FromInstance converts a ResourceInstance to a AssetRequest

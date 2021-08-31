@@ -49,7 +49,7 @@ func TestRegisterSubscriptionSchema(t *testing.T) {
 		if strings.Contains(req.RequestURI, "/consumersubscriptiondefs/"+apiKeySchema.GetSubscriptionName()) {
 			if req.Method == http.MethodGet {
 				if schemaExists {
-					existingSchema := v1alpha1.ConsumerSubscriptionDefinition{}
+					existingSchema := v1alpha1.AccessRequestDefinition{}
 					b, _ = json.Marshal(existingSchema)
 				} else {
 					rw.WriteHeader(http.StatusNotFound)
@@ -132,22 +132,4 @@ func TestGetProperty(t *testing.T) {
 	p = schema.GetProperty("prop1")
 	assert.NotNil(t, p)
 	assert.Equal(t, "someproperty", p.Description)
-}
-
-func TestGetProfilePropValue(t *testing.T) {
-	svcClient, _, _ := commonSetup(t)
-	sc := svcClient.(*ServiceClient)
-	def := &v1alpha1.ConsumerSubscriptionDefinition{}
-	p := sc.getProfilePropValue(def)
-	assert.Nil(t, p)
-
-	props := v1alpha1.ConsumerSubscriptionDefinitionSpecSchemaProperties{
-		Key:   profileKey,
-		Value: map[string]interface{}{"key1": "value1"},
-	}
-
-	def.Spec.Schema.Properties = []v1alpha1.ConsumerSubscriptionDefinitionSpecSchemaProperties{props}
-	p = sc.getProfilePropValue(def)
-	assert.NotNil(t, p)
-	assert.Equal(t, "value1", p["key1"])
 }
