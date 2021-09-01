@@ -319,7 +319,7 @@ func (c *CentralConfiguration) GetConsumerInstancesURL() string {
 
 // GetAPIServerSubscriptionDefinitionURL - Returns the APIServer URL for services API instances
 func (c *CentralConfiguration) GetAPIServerSubscriptionDefinitionURL() string {
-	return c.GetEnvironmentURL() + "/consumersubscriptiondefs"
+	return c.GetEnvironmentURL() + "/accessrequestdefinitions"
 }
 
 // GetAPIServerWebhooksURL - Returns the APIServer URL for webhooks instances
