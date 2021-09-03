@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/Axway/agent-sdk/pkg/agent"
@@ -73,9 +74,10 @@ func (e *Generator) trackMetrics(summaryEvent LogEvent, bytes int64) {
 		}
 		statusCode := summaryEvent.TransactionSummary.StatusDetail
 		duration := summaryEvent.TransactionSummary.Duration
-		appName := ""
+		appDetails := metric.AppDetails{}
 		if summaryEvent.TransactionSummary.Application != nil {
-			appName = summaryEvent.TransactionSummary.Application.Name
+			appDetails.Name = summaryEvent.TransactionSummary.Application.Name
+			appDetails.ID = strings.TrimLeft(summaryEvent.TransactionSummary.Application.ID, SummaryEventApplicationIDPrefix)
 		}
 		teamName := ""
 		if summaryEvent.TransactionSummary.Team != nil {
@@ -83,7 +85,15 @@ func (e *Generator) trackMetrics(summaryEvent LogEvent, bytes int64) {
 		}
 		collector := metric.GetMetricCollector()
 		if collector != nil {
-			collector.AddMetric(apiDetails, statusCode, int64(duration), bytes, appName, teamName)
+			newMetric := metric.Data{
+				APIDetails: apiDetails,
+				StatusCode: statusCode,
+				Duration:   int64(duration),
+				UsageBytes: bytes,
+				AppDetails: appDetails,
+				TeamName:   teamName,
+			}
+			collector.AddMetricData(newMetric)
 		}
 	}
 }

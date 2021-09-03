@@ -24,6 +24,7 @@ import (
 // Collector - interface for collecting metrics
 type Collector interface {
 	AddMetric(apiDetails APIDetails, statusCode string, duration, bytes int64, appName, teamName string)
+	AddMetricData(metricData Data)
 }
 
 // collector - collects the metrics for transactions events
@@ -180,6 +181,18 @@ func (c *collector) AddMetric(apiDetails APIDetails, statusCode string, duration
 	c.updateMetric(apiDetails, statusCode, duration)
 }
 
+// AddMetricData - add metric for API transaction to collection
+func (c *collector) AddMetricData(metricData Data) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.batchLock.Lock()
+	defer c.batchLock.Unlock()
+	c.updateUsage(1)
+	c.updateAppUsage(metricData.AppDetails, 1)
+	c.updateVolume(metricData.UsageBytes)
+	c.updateMetric(metricData.APIDetails, metricData.StatusCode, metricData.Duration)
+}
+
 func (c *collector) updateVolume(bytes int64) {
 	if !agent.GetCentralConfig().IsAxwayManaged() {
 		return // no need to update volume for customer managed
@@ -193,6 +206,15 @@ func (c *collector) updateUsage(count int64) {
 	transactionCount := c.getOrRegisterCounter(transactionCountMetric)
 	transactionCount.Inc(count)
 	c.storage.updateUsage(int(transactionCount.Count()))
+}
+
+func (c *collector) updateAppUsage(appDetails AppDetails, count int64) {
+	if !c.usageConfig.CanPublishUsage() {
+		return // no need to update metrics with publish off
+	}
+	appUsageCount := c.getOrRegisterCounter(appUsagePrefix + appDetails.ID)
+	appUsageCount.Inc(count)
+	c.storage.updateAppUsage(int(appUsageCount.Count()), appDetails.ID)
 }
 
 func (c *collector) updateMetric(apiDetails APIDetails, statusCode string, duration int64) *APIMetric {
@@ -263,15 +285,17 @@ func (c *collector) generateEvents() {
 }
 
 func (c *collector) processUsageFromRegistry(name string, metric interface{}) {
-	switch name {
-	case transactionCountMetric:
+	switch {
+	case name == transactionCountMetric:
 		if c.usageConfig.CanPublishUsage() {
 			c.generateUsageEvent(c.orgGUID)
 		} else {
 			log.Info("Publishing the usage event is turned off")
 		}
-	case transactionVolumeMetric:
+	case name == transactionVolumeMetric:
 		return // skip volume metric as it is handled with Count metric
+	case strings.HasPrefix(name, appUsagePrefix):
+		c.processAppUsage(name)
 	default:
 		c.processTransactionMetric(name, metric)
 	}
@@ -340,6 +364,15 @@ func (c *collector) processTransactionMetric(metricName string, metric interface
 				c.generateAPIStatusMetricEvent(statusMetric, statusCodeDetail, apiID)
 			}
 		}
+	}
+}
+
+func (c *collector) processAppUsage(usageName string) {
+	elements := strings.Split(usageName, ".")
+	if len(elements) > 1 {
+		appID := elements[1]
+		log.Infof("Reporting a count of %d calls on application ID %s", c.getOrRegisterCounter(usageName).Count(), appID)
+		c.getOrRegisterCounter(usageName).Clear()
 	}
 }
 

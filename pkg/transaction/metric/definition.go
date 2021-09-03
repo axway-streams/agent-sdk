@@ -38,6 +38,22 @@ type APIDetails struct {
 	Name string `json:"name"`
 }
 
+// APPDetails - Holds the app details
+type AppDetails struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Data - struct for data to report as API Metrics
+type Data struct {
+	APIDetails APIDetails
+	StatusCode string
+	Duration   int64
+	UsageBytes int64
+	AppDetails AppDetails
+	TeamName   string
+}
+
 // APIMetric - struct to hold metric specific for status code based API transactions
 type APIMetric struct {
 	API         APIDetails         `json:"api"`
@@ -46,6 +62,12 @@ type APIMetric struct {
 	Response    ResponseMetrics    `json:"response"`
 	Observation ObservationDetails `json:"observation"`
 	StartTime   time.Time          `json:"-"`
+}
+
+// AppUsage - struct to hold metric specific for app usage
+type AppUsage struct {
+	App   AppDetails `json:"app"`
+	Count int64      `json:"count"`
 }
 
 // cachedMetric - struct to hold metric specific that gets cached and used for agent recovery
