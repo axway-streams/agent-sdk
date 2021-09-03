@@ -45,7 +45,7 @@ func (c *ServiceClient) PublishService(serviceBody ServiceBody) (*v1alpha1.APISe
 	if err != nil {
 		return nil, err
 	}
-	if c.cfg.IsPublishToEnvironmentAndCatalogMode() {
+	if false {
 		err = c.processConsumerInstance(&serviceBody)
 		if err != nil {
 			return nil, err

@@ -113,8 +113,8 @@ type CentralConfig interface {
 	GetSubscriptionURL() string
 	GetSubscriptionConfig() SubscriptionConfig
 	GetCatalogItemSubscriptionsURL(string) string
-	GetCatalogItemSubscriptionStatesURL(string, string) string
-	GetCatalogItemSubscriptionPropertiesURL(string, string) string
+	GetCatalogItemSubscriptionStatesURL(string) string
+	GetCatalogItemSubscriptionPropertiesURL(string) string
 	GetCatalogItemSubscriptionRelationshipURL(string, string) string
 	GetCatalogItemSubscriptionDefinitionPropertiesURL(string) string
 	GetAuthConfig() AuthConfig
@@ -334,7 +334,7 @@ func (c *CentralConfiguration) GetAPIServerSecretsURL() string {
 
 // GetSubscriptionURL - Returns the unifiedcatalog URL for subscriptions list
 func (c *CentralConfiguration) GetSubscriptionURL() string {
-	return c.URL + "/api/unifiedCatalog/v1/subscriptions"
+	return c.GetEnvironmentURL() + "/accessrequests"
 }
 
 // GetCatalogItemSubscriptionsURL - Returns the unifiedcatalog URL for catalog item subscriptions
@@ -343,13 +343,13 @@ func (c *CentralConfiguration) GetCatalogItemSubscriptionsURL(catalogItemID stri
 }
 
 // GetCatalogItemSubscriptionStatesURL - Returns the unifiedcatalog URL for catalog item subscription states
-func (c *CentralConfiguration) GetCatalogItemSubscriptionStatesURL(catalogItemID, subscriptionID string) string {
-	return fmt.Sprintf("%s/%s/states", c.GetCatalogItemSubscriptionsURL(catalogItemID), subscriptionID)
+func (c *CentralConfiguration) GetCatalogItemSubscriptionStatesURL(accessRequestName string) string {
+	return fmt.Sprintf("%s/%s/state", c.GetSubscriptionURL(), accessRequestName)
 }
 
 // GetCatalogItemSubscriptionPropertiesURL - Returns the unifiedcatalog URL for catalog item subscription properties
-func (c *CentralConfiguration) GetCatalogItemSubscriptionPropertiesURL(catalogItemID, subscriptionID string) string {
-	return fmt.Sprintf("%s/%s/properties", c.GetCatalogItemSubscriptionsURL(catalogItemID), subscriptionID)
+func (c *CentralConfiguration) GetCatalogItemSubscriptionPropertiesURL(accessRequestName string) string {
+	return fmt.Sprintf("%s/%s", c.GetSubscriptionURL(), accessRequestName)
 }
 
 // GetCatalogItemSubscriptionRelationshipURL - Returns the relationships URL for catalog item subscription

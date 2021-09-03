@@ -129,20 +129,33 @@ func (sm *subscriptionManager) preprocessSubscription(subscription *CentralSubsc
 	subscription.ApicID = subscription.GetCatalogItemID()
 	subscription.apicClient = sm.apicClient
 
-	apiserverInfo, err := sm.apicClient.getCatalogItemAPIServerInfoProperty(subscription.GetCatalogItemID(), subscription.GetID())
+	apiSI, err := sm.apicClient.getAPIServiceInstanceByName(subscription.GetCatalogItemID())
+
 	if err != nil {
 		log.Error(utilerrors.Wrap(ErrGetCatalogItemServerInfoProperties, err.Error()))
 		return err
 	}
-	if apiserverInfo.Environment.Name != sm.apicClient.cfg.GetEnvironmentName() {
-		log.Debugf("Subscription '%s' skipped because associated catalog item belongs to '%s' environment and the agent is configured for managing '%s' environment", subscription.GetName(), apiserverInfo.Environment.Name, sm.apicClient.cfg.GetEnvironmentName())
+	apiSIR, err := apiSI.AsInstance()
+
+	if err != nil {
+		log.Error(utilerrors.Wrap(ErrGetCatalogItemServerInfoProperties, err.Error()))
 		return err
 	}
-	if apiserverInfo.ConsumerInstance.Name == "" {
-		log.Debugf("Subscription '%s' skipped because associated catalog item is not created by agent", subscription.GetName())
-		return err
-	}
-	sm.preprocessSubscriptionForConsumerInstance(subscription, apiserverInfo.ConsumerInstance.Name)
+	sm.setSubscriptionInfo(subscription, apiSIR)
+	// apiserverInfo, err := sm.apicClient.getCatalogItemAPIServerInfoProperty(subscription.GetCatalogItemID(), subscription.GetID())
+	// if err != nil {
+	// 	log.Error(utilerrors.Wrap(ErrGetCatalogItemServerInfoProperties, err.Error()))
+	// 	return err
+	// }
+	// if apiserverInfo.Environment.Name != sm.apicClient.cfg.GetEnvironmentName() {
+	// 	log.Debugf("Subscription '%s' skipped because associated catalog item belongs to '%s' environment and the agent is configured for managing '%s' environment", subscription.GetName(), apiserverInfo.Environment.Name, sm.apicClient.cfg.GetEnvironmentName())
+	// 	return err
+	// }
+	// if apiserverInfo.ConsumerInstance.Name == "" {
+	// 	log.Debugf("Subscription '%s' skipped because associated catalog item is not created by agent", subscription.GetName())
+	// 	return err
+	// }
+	// sm.preprocessSubscriptionForConsumerInstance(subscription, apiserverInfo.ConsumerInstance.Name)
 	return nil
 }
 
