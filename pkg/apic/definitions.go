@@ -42,6 +42,10 @@ const (
 	AttrExternalAPIName              = "externalAPIName"
 	AttrExternalAPIStage             = "externalAPIStage"
 	AttrCreatedBy                    = "createdBy"
+
+	DataplaneAppName = "dataplaneAppName"
+	DataplaneAppID   = "dataplaneAppID"
+	DataplaneAuthRef = "dataplaneAuthRef"
 )
 
 type apiErrorResponse map[string][]apiError

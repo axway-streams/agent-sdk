@@ -67,6 +67,7 @@ type agentData struct {
 	logPath        string
 
 	apiMap                     cache.Cache
+	accessRequestMap           cache.Cache
 	apiValidator               APIValidator
 	deleteServiceValidator     DeleteServiceValidator
 	configChangeHandler        ConfigChangeHandler
@@ -81,6 +82,10 @@ func Initialize(centralCfg config.CentralConfig) error {
 	// Only create the api map cache if it does not already exist
 	if agent.apiMap == nil {
 		agent.apiMap = cache.New()
+	}
+	// Only create the access request map cache if it does not already exist
+	if agent.accessRequestMap == nil {
+		agent.accessRequestMap = cache.New()
 	}
 
 	err := checkRunningAgent()

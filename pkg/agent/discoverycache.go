@@ -36,16 +36,18 @@ func init() {
 
 type discoveryCache struct {
 	jobs.Job
-	lastServiceTime  time.Time
-	lastInstanceTime time.Time
-	refreshAll       bool
+	lastServiceTime       time.Time
+	lastInstanceTime      time.Time
+	lastAccessRequestTime time.Time
+	refreshAll            bool
 }
 
 func newDiscoveryCache(getAll bool) *discoveryCache {
 	return &discoveryCache{
-		lastServiceTime:  time.Time{},
-		lastInstanceTime: time.Time{},
-		refreshAll:       getAll,
+		lastServiceTime:       time.Time{},
+		lastInstanceTime:      time.Time{},
+		lastAccessRequestTime: time.Time{},
+		refreshAll:            getAll,
 	}
 }
 
@@ -72,6 +74,9 @@ func (j *discoveryCache) Execute() error {
 	j.updateAPICache()
 	if agent.cfg.GetAgentType() == config.DiscoveryAgent {
 		j.validateAPIServiceInstances()
+	}
+	if agent.cfg.GetAgentType() == config.TraceabilityAgent {
+		j.updateAccessRequestCache()
 	}
 	fetchConfig()
 	return nil

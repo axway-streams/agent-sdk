@@ -371,7 +371,10 @@ func (c *collector) processAppUsage(usageName string) {
 	elements := strings.Split(usageName, ".")
 	if len(elements) > 1 {
 		appID := elements[1]
-		log.Infof("Reporting a count of %d calls on application ID %s", c.getOrRegisterCounter(usageName).Count(), appID)
+		// Get AccessRequest from cache with appID
+		accessRequest := agent.GetAccessRequestByAppID(appID)
+
+		log.Infof("****************Reporting a count of %d calls on asset request %s****************", c.getOrRegisterCounter(usageName).Count(), accessRequest.Spec.AssetRequest)
 		c.getOrRegisterCounter(usageName).Clear()
 	}
 }
