@@ -11,6 +11,8 @@ package v1alpha1
 
 // AccessRequestSpec struct for AccessRequestSpec
 type AccessRequestSpec struct {
+	// The name of the assetRequest resource from which this access request is created.
+	AssetRequest string `json:"assetRequest,omitempty"`
 	// The name of an APIServiceInstance resource that specifies where the API is deployed.
 	ApiServiceInstance string `json:"apiServiceInstance"`
 	// The value that matches the AccessRequestDefinition schema linked to the referenced APIServiceInstance.
