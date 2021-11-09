@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WatchServiceClient interface {
-	CreateWatch(ctx context.Context, opts ...grpc.CallOption) (WatchService_CreateWatchClient, error)
+	CreateWatch(ctx context.Context, in *Request, opts ...grpc.CallOption) (WatchService_CreateWatchClient, error)
 }
 
 type watchServiceClient struct {
@@ -29,27 +29,28 @@ func NewWatchServiceClient(cc grpc.ClientConnInterface) WatchServiceClient {
 	return &watchServiceClient{cc}
 }
 
-func (c *watchServiceClient) CreateWatch(ctx context.Context, opts ...grpc.CallOption) (WatchService_CreateWatchClient, error) {
+func (c *watchServiceClient) CreateWatch(ctx context.Context, in *Request, opts ...grpc.CallOption) (WatchService_CreateWatchClient, error) {
 	stream, err := c.cc.NewStream(ctx, &WatchService_ServiceDesc.Streams[0], "/apis.v1.WatchService/CreateWatch", opts...)
 	if err != nil {
 		return nil, err
 	}
 	x := &watchServiceCreateWatchClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
 	return x, nil
 }
 
 type WatchService_CreateWatchClient interface {
-	Send(*Request) error
 	Recv() (*Event, error)
 	grpc.ClientStream
 }
 
 type watchServiceCreateWatchClient struct {
 	grpc.ClientStream
-}
-
-func (x *watchServiceCreateWatchClient) Send(m *Request) error {
-	return x.ClientStream.SendMsg(m)
 }
 
 func (x *watchServiceCreateWatchClient) Recv() (*Event, error) {
@@ -64,7 +65,7 @@ func (x *watchServiceCreateWatchClient) Recv() (*Event, error) {
 // All implementations must embed UnimplementedWatchServiceServer
 // for forward compatibility
 type WatchServiceServer interface {
-	CreateWatch(WatchService_CreateWatchServer) error
+	CreateWatch(*Request, WatchService_CreateWatchServer) error
 	mustEmbedUnimplementedWatchServiceServer()
 }
 
@@ -72,7 +73,7 @@ type WatchServiceServer interface {
 type UnimplementedWatchServiceServer struct {
 }
 
-func (UnimplementedWatchServiceServer) CreateWatch(WatchService_CreateWatchServer) error {
+func (UnimplementedWatchServiceServer) CreateWatch(*Request, WatchService_CreateWatchServer) error {
 	return status.Errorf(codes.Unimplemented, "method CreateWatch not implemented")
 }
 func (UnimplementedWatchServiceServer) mustEmbedUnimplementedWatchServiceServer() {}
@@ -89,12 +90,15 @@ func RegisterWatchServiceServer(s grpc.ServiceRegistrar, srv WatchServiceServer)
 }
 
 func _WatchService_CreateWatch_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(WatchServiceServer).CreateWatch(&watchServiceCreateWatchServer{stream})
+	m := new(Request)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(WatchServiceServer).CreateWatch(m, &watchServiceCreateWatchServer{stream})
 }
 
 type WatchService_CreateWatchServer interface {
 	Send(*Event) error
-	Recv() (*Request, error)
 	grpc.ServerStream
 }
 
@@ -104,14 +108,6 @@ type watchServiceCreateWatchServer struct {
 
 func (x *watchServiceCreateWatchServer) Send(m *Event) error {
 	return x.ServerStream.SendMsg(m)
-}
-
-func (x *watchServiceCreateWatchServer) Recv() (*Request, error) {
-	m := new(Request)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
 }
 
 // WatchService_ServiceDesc is the grpc.ServiceDesc for WatchService service.
@@ -126,7 +122,6 @@ var WatchService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "CreateWatch",
 			Handler:       _WatchService_CreateWatch_Handler,
 			ServerStreams: true,
-			ClientStreams: true,
 		},
 	},
 	Metadata: "watch.proto",

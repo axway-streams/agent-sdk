@@ -30,19 +30,27 @@ func newWatchClient(cc grpc.ClientConnInterface, clientCfg watchClientConfig) (*
 	svcClient := proto.NewWatchServiceClient(cc)
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
-	stream, err := svcClient.CreateWatch(streamCtx)
+
+	client := &watchClient{
+		cfg:          clientCfg,
+		cancelStream: streamCancel,
+	}
+
+	req, exp, err := client.prepareReq()
 	if err != nil {
 		streamCancel()
 		return nil, err
 	}
 
-	client := &watchClient{
-		cfg:          clientCfg,
-		stream:       stream,
-		cancelStream: streamCancel,
-		timer:        time.NewTimer(0),
+	stream, err := svcClient.CreateWatch(streamCtx, req)
+	if err != nil {
+		streamCancel()
+		return nil, err
 	}
 
+	client.timer = time.NewTimer(exp)
+	client.stream = stream
+	go client.processResubscription(exp)
 	return client, nil
 }
 
@@ -67,40 +75,40 @@ func (c *watchClient) recv() error {
 	return nil
 }
 
-// processRequest sends a message to the client when the timer expires, and handles when the stream is closed.
-func (c *watchClient) processRequest() {
+// processResubscription sends a message to the client when the timer expires, and handles when the stream is closed.
+func (c *watchClient) processResubscription(exp time.Duration) {
 	for {
 		select {
 		case <-c.stream.Context().Done():
 			c.handleError(c.stream.Context().Err())
 			return
 		case <-c.timer.C:
-			exp, err := c.send()
-			if err != nil {
-				c.handleError(err)
-				return
-			}
+			// exp, err := c.send()
+			// if err != nil {
+			// 	c.handleError(err)
+			// 	return
+			// }
 			c.timer.Reset(exp)
 		}
 	}
 }
 
 // send a message with a new token to the grpc server and returns the expiration time
-func (c *watchClient) send() (time.Duration, error) {
+func (c *watchClient) prepareReq() (*proto.Request, time.Duration, error) {
 	token, err := c.cfg.tokenGetter()
 	if err != nil {
-		return time.Duration(0), err
+		return nil, time.Duration(0), err
 	}
 	exp, err := getTokenExpirationTime(token)
 	if err != nil {
-		return exp, err
+		return nil, exp, err
 	}
 	req := createWatchRequest(c.cfg.topicSelfLink, token)
-	err = c.stream.Send(req)
-	if err != nil {
-		return exp, err
-	}
-	return exp, nil
+	// err = c.stream.Send(req)
+	// if err != nil {
+	// 	return exp, err
+	// }
+	return req, exp, nil
 }
 
 // handleError stop the running timer, send to the error channel, and close the open stream.

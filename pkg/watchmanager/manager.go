@@ -95,7 +95,7 @@ func (m *watchManager) RegisterWatch(link string, events chan *proto.Event, erro
 
 	m.clientMap[subID] = client
 
-	go client.processRequest()
+	// go client.processRequest()
 	go client.processEvents()
 
 	m.logger.WithField("watchtopic", link).
