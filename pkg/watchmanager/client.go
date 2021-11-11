@@ -20,20 +20,20 @@ type watchClientConfig struct {
 }
 
 type watchClient struct {
-	cfg          watchClientConfig
-	stream       proto.WatchService_CreateWatchClient
-	cancelStream context.CancelFunc
-	timer        *time.Timer
+	subscriptionID string
+	svcClient      proto.WatchServiceClient
+	cfg            watchClientConfig
+	stream         proto.WatchService_SubscribeClient
+	cancelStream   context.CancelFunc
+	timer          *time.Timer
 }
 
 func newWatchClient(cc grpc.ClientConnInterface, clientCfg watchClientConfig) (*watchClient, error) {
-	svcClient := proto.NewWatchServiceClient(cc)
-
 	streamCtx, streamCancel := context.WithCancel(context.Background())
-
 	client := &watchClient{
 		cfg:          clientCfg,
 		cancelStream: streamCancel,
+		svcClient:    proto.NewWatchServiceClient(cc),
 	}
 
 	req, exp, err := client.prepareReq()
@@ -42,13 +42,19 @@ func newWatchClient(cc grpc.ClientConnInterface, clientCfg watchClientConfig) (*
 		return nil, err
 	}
 
-	stream, err := svcClient.CreateWatch(streamCtx, req)
+	stream, err := client.svcClient.Subscribe(streamCtx, req)
+	if err != nil {
+		streamCancel()
+		return nil, err
+	}
+	event, err := stream.Recv()
 	if err != nil {
 		streamCancel()
 		return nil, err
 	}
 
-	client.timer = time.NewTimer(exp)
+	client.subscriptionID = event.StreamId
+	client.timer = time.NewTimer(time.Duration(10) * time.Second)
 	client.stream = stream
 	go client.processResubscription(exp)
 	return client, nil
@@ -83,11 +89,21 @@ func (c *watchClient) processResubscription(exp time.Duration) {
 			c.handleError(c.stream.Context().Err())
 			return
 		case <-c.timer.C:
-			// exp, err := c.send()
-			// if err != nil {
-			// 	c.handleError(err)
-			// 	return
-			// }
+			req, exp, err := c.prepareReq()
+			if err != nil {
+				c.cancelStream()
+				return
+			}
+			resubscribeReq := &proto.ResubscribeRequest{
+				Request:  req,
+				StreamId: c.subscriptionID,
+			}
+
+			_, err = c.svcClient.Resubscribe(context.Background(), resubscribeReq)
+			if err != nil {
+				c.cancelStream()
+				return
+			}
 			c.timer.Reset(exp)
 		}
 	}
@@ -104,10 +120,7 @@ func (c *watchClient) prepareReq() (*proto.Request, time.Duration, error) {
 		return nil, exp, err
 	}
 	req := createWatchRequest(c.cfg.topicSelfLink, token)
-	// err = c.stream.Send(req)
-	// if err != nil {
-	// 	return exp, err
-	// }
+
 	return req, exp, nil
 }
 

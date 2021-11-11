@@ -7,6 +7,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -18,7 +19,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WatchServiceClient interface {
-	CreateWatch(ctx context.Context, in *Request, opts ...grpc.CallOption) (WatchService_CreateWatchClient, error)
+	Subscribe(ctx context.Context, in *Request, opts ...grpc.CallOption) (WatchService_SubscribeClient, error)
+	Resubscribe(ctx context.Context, in *ResubscribeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type watchServiceClient struct {
@@ -29,12 +31,12 @@ func NewWatchServiceClient(cc grpc.ClientConnInterface) WatchServiceClient {
 	return &watchServiceClient{cc}
 }
 
-func (c *watchServiceClient) CreateWatch(ctx context.Context, in *Request, opts ...grpc.CallOption) (WatchService_CreateWatchClient, error) {
-	stream, err := c.cc.NewStream(ctx, &WatchService_ServiceDesc.Streams[0], "/apis.v1.WatchService/CreateWatch", opts...)
+func (c *watchServiceClient) Subscribe(ctx context.Context, in *Request, opts ...grpc.CallOption) (WatchService_SubscribeClient, error) {
+	stream, err := c.cc.NewStream(ctx, &WatchService_ServiceDesc.Streams[0], "/apis.v1.WatchService/Subscribe", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &watchServiceCreateWatchClient{stream}
+	x := &watchServiceSubscribeClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -44,16 +46,16 @@ func (c *watchServiceClient) CreateWatch(ctx context.Context, in *Request, opts 
 	return x, nil
 }
 
-type WatchService_CreateWatchClient interface {
+type WatchService_SubscribeClient interface {
 	Recv() (*Event, error)
 	grpc.ClientStream
 }
 
-type watchServiceCreateWatchClient struct {
+type watchServiceSubscribeClient struct {
 	grpc.ClientStream
 }
 
-func (x *watchServiceCreateWatchClient) Recv() (*Event, error) {
+func (x *watchServiceSubscribeClient) Recv() (*Event, error) {
 	m := new(Event)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -61,11 +63,21 @@ func (x *watchServiceCreateWatchClient) Recv() (*Event, error) {
 	return m, nil
 }
 
+func (c *watchServiceClient) Resubscribe(ctx context.Context, in *ResubscribeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/apis.v1.WatchService/Resubscribe", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // WatchServiceServer is the server API for WatchService service.
 // All implementations must embed UnimplementedWatchServiceServer
 // for forward compatibility
 type WatchServiceServer interface {
-	CreateWatch(*Request, WatchService_CreateWatchServer) error
+	Subscribe(*Request, WatchService_SubscribeServer) error
+	Resubscribe(context.Context, *ResubscribeRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedWatchServiceServer()
 }
 
@@ -73,8 +85,11 @@ type WatchServiceServer interface {
 type UnimplementedWatchServiceServer struct {
 }
 
-func (UnimplementedWatchServiceServer) CreateWatch(*Request, WatchService_CreateWatchServer) error {
-	return status.Errorf(codes.Unimplemented, "method CreateWatch not implemented")
+func (UnimplementedWatchServiceServer) Subscribe(*Request, WatchService_SubscribeServer) error {
+	return status.Errorf(codes.Unimplemented, "method Subscribe not implemented")
+}
+func (UnimplementedWatchServiceServer) Resubscribe(context.Context, *ResubscribeRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Resubscribe not implemented")
 }
 func (UnimplementedWatchServiceServer) mustEmbedUnimplementedWatchServiceServer() {}
 
@@ -89,25 +104,43 @@ func RegisterWatchServiceServer(s grpc.ServiceRegistrar, srv WatchServiceServer)
 	s.RegisterService(&WatchService_ServiceDesc, srv)
 }
 
-func _WatchService_CreateWatch_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _WatchService_Subscribe_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(Request)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(WatchServiceServer).CreateWatch(m, &watchServiceCreateWatchServer{stream})
+	return srv.(WatchServiceServer).Subscribe(m, &watchServiceSubscribeServer{stream})
 }
 
-type WatchService_CreateWatchServer interface {
+type WatchService_SubscribeServer interface {
 	Send(*Event) error
 	grpc.ServerStream
 }
 
-type watchServiceCreateWatchServer struct {
+type watchServiceSubscribeServer struct {
 	grpc.ServerStream
 }
 
-func (x *watchServiceCreateWatchServer) Send(m *Event) error {
+func (x *watchServiceSubscribeServer) Send(m *Event) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _WatchService_Resubscribe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResubscribeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WatchServiceServer).Resubscribe(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/apis.v1.WatchService/Resubscribe",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WatchServiceServer).Resubscribe(ctx, req.(*ResubscribeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 // WatchService_ServiceDesc is the grpc.ServiceDesc for WatchService service.
@@ -116,11 +149,16 @@ func (x *watchServiceCreateWatchServer) Send(m *Event) error {
 var WatchService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "apis.v1.WatchService",
 	HandlerType: (*WatchServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Resubscribe",
+			Handler:    _WatchService_Resubscribe_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "CreateWatch",
-			Handler:       _WatchService_CreateWatch_Handler,
+			StreamName:    "Subscribe",
+			Handler:       _WatchService_Subscribe_Handler,
 			ServerStreams: true,
 		},
 	},

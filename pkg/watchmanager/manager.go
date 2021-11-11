@@ -7,7 +7,6 @@ import (
 	"github.com/Axway/agent-sdk/pkg/watchmanager/proto"
 	"github.com/sirupsen/logrus"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 )
 
@@ -90,17 +89,14 @@ func (m *watchManager) RegisterWatch(link string, events chan *proto.Event, erro
 		return "", err
 	}
 
-	subscriptionID, _ := uuid.NewUUID()
-	subID := subscriptionID.String()
-
+	subID := client.subscriptionID
 	m.clientMap[subID] = client
 
-	// go client.processRequest()
 	go client.processEvents()
 
 	m.logger.WithField("watchtopic", link).
 		WithField("subscriptionId", subID).
-		Info("registered new watch client[subscription]")
+		Info("registered new watch client subscription")
 
 	return subID, nil
 }

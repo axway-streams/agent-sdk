@@ -3,12 +3,21 @@ syntax = "proto3";
 package apis.v1;
 
 import "apicentral.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/Axway/agent-sdk/pkg/proto";
 
 service WatchService {
-    rpc CreateWatch(Request) returns (stream Event) {
+    rpc Subscribe(Request) returns (stream Event) {
     }
+
+    rpc Resubscribe(ResubscribeRequest) returns (google.protobuf.Empty) {
+    }
+}
+
+message ResubscribeRequest {
+    string stream_id = 1;
+    Request request = 2;
 }
 
 message Request {
@@ -18,21 +27,23 @@ message Request {
 
 message Event {
     string id = 1;
-    string time = 2;
-    string version = 3;
-    string product = 4;
-    string correlationId = 5;
-    Organization organization = 6;
+    string stream_id = 2;
+    string time = 3;
+    string version = 4;
+    string product = 5;
+    string correlationId = 6;
+    Organization organization = 7;
     enum Type {
-        CREATED = 0;
-        UPDATED = 1;
-        DELETED = 2;
+        REGISTERED = 0;
+        CREATED = 1;
+        UPDATED = 2;
+        DELETED = 3;
     }
-    Type type = 7;
+    Type type = 8;
 
-    .amplifycentral.datamodel.ResourceInstance payload = 8;
+    .amplifycentral.datamodel.ResourceInstance payload = 9;
 
-    EventMeta metadata = 9;
+    EventMeta metadata = 10;
 }
 
 message EventMeta {
