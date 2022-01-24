@@ -150,24 +150,7 @@ func (m *mockSvcClient) CreateAccessControlList(acl *v1alpha1.AccessControlList)
 	return nil, nil
 }
 
-var oldUpdateCacheForExternalAPIID = updateCacheForExternalAPIID
-var oldUpdateCacheForExternalAPIName = updateCacheForExternalAPIName
-var oldUpdateCacheForExternalAPI = updateCacheForExternalAPI
-
-func fakeCacheUpdateCalls() {
-	updateCacheForExternalAPIID = func(string) (*v1.ResourceInstance, error) { return nil, nil }
-	updateCacheForExternalAPIName = func(string) (*v1.ResourceInstance, error) { return nil, nil }
-	updateCacheForExternalAPI = func(map[string]string) (*v1.ResourceInstance, error) { return nil, nil }
-}
-
-func restoreCacheUpdateCalls() {
-	updateCacheForExternalAPIID = oldUpdateCacheForExternalAPIID
-	updateCacheForExternalAPIName = oldUpdateCacheForExternalAPIName
-	updateCacheForExternalAPI = oldUpdateCacheForExternalAPI
-}
-
 func TestDiscoveryCache(t *testing.T) {
-	fakeCacheUpdateCalls()
 	dcj := newDiscoveryCache(nil, true, &sync.Mutex{})
 	attributeKey := "Attr1"
 	attributeValue := "testValue"
@@ -273,6 +256,4 @@ func TestDiscoveryCache(t *testing.T) {
 	assert.True(t, IsAPIPublishedByID("1111"))
 	assert.True(t, IsAPIPublishedByPrimaryKey("1234"))
 	assert.False(t, IsAPIPublishedByID("2222"))
-
-	restoreCacheUpdateCalls()
 }
