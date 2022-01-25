@@ -48,6 +48,21 @@ type APIMetric struct {
 	StartTime   time.Time          `json:"-"`
 }
 
+type AppDetails struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Data - struct for data to report as API Metrics
+type Data struct {
+	APIDetails APIDetails
+	StatusCode string
+	Duration   int64
+	UsageBytes int64
+	AppDetails AppDetails
+	TeamName   string
+}
+
 // cachedMetric - struct to hold metric specific that gets cached and used for agent recovery
 type cachedMetric struct {
 	API        APIDetails `json:"api"`
@@ -55,6 +70,12 @@ type cachedMetric struct {
 	Count      int64      `json:"count"`
 	Values     []int64    `json:"values"`
 	StartTime  time.Time  `json:"startTime"`
+}
+
+// AppUsage - struct to hold metric specific for app usage
+type AppUsage struct {
+	App   AppDetails `json:"app"`
+	Count int64      `json:"count"`
 }
 
 // V4EventDistribution - represents V7 distribution

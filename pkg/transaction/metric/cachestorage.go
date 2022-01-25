@@ -21,6 +21,7 @@ const (
 	usageStartTimeKey = "usage_start_time"
 	usageCountKey     = "usage_count"
 	volumeKey         = "usage_volume"
+	appUsagePrefix    = "app_usage."
 	metricKeyPrefix   = "metric."
 )
 
@@ -28,6 +29,7 @@ type storageCache interface {
 	initialize()
 	updateUsage(usageCount int)
 	updateVolume(bytes int64)
+	updateAppUsage(usageCount int, appID string)
 	updateMetric(apiStatusMetric metrics.Histogram, apiMetric *APIMetric)
 	removeMetric(apiMetric *APIMetric)
 	save()
@@ -123,6 +125,16 @@ func (c *cacheStorage) updateVolume(bytes int64) {
 	c.storageLock.Lock()
 	defer c.storageLock.Unlock()
 	c.storage.Set(volumeKey, bytes)
+}
+
+func (c *cacheStorage) updateAppUsage(usageCount int, appID string) {
+	if !c.isInitialized || !agent.GetCentralConfig().GetUsageReportingConfig().CanPublishUsage() {
+		return
+	}
+
+	c.storageLock.Lock()
+	defer c.storageLock.Unlock()
+	c.storage.Set(appUsagePrefix+appID, usageCount)
 }
 
 func (c *cacheStorage) loadAPIMetric(storageCache cache.Cache) {

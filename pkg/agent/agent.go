@@ -64,6 +64,7 @@ type agentData struct {
 	logPath          string
 
 	apiMap                     cache.Cache
+	accessRequestMap           cache.Cache
 	categoryMap                cache.Cache
 	teamMap                    cache.Cache
 	apiValidator               APIValidator
@@ -81,7 +82,7 @@ func Initialize(centralCfg config.CentralConfig) error {
 
 // InitializeWithAgentFeatures - Initializes the agent with agent features
 func InitializeWithAgentFeatures(centralCfg config.CentralConfig, agentFeaturesCfg config.AgentFeaturesConfig) error {
-	// Only create the api map cache if it does not already exist
+	// Only create map caches if they don't already exist
 	if agent.apiMap == nil {
 		agent.apiMap = cache.New()
 	}
@@ -90,6 +91,9 @@ func InitializeWithAgentFeatures(centralCfg config.CentralConfig, agentFeaturesC
 	}
 	if agent.teamMap == nil {
 		agent.teamMap = cache.New()
+	}
+	if agent.accessRequestMap == nil {
+		agent.accessRequestMap = cache.New()
 	}
 
 	err := checkRunningAgent()
