@@ -48,6 +48,7 @@ type APIMetric struct {
 	StartTime   time.Time          `json:"-"`
 }
 
+// AppDetails - struct for app name and id
 type AppDetails struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
