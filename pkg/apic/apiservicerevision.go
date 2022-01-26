@@ -66,7 +66,7 @@ func (c *ServiceClient) buildAPIServiceRevisionResource(serviceBody *ServiceBody
 			Name:             revisionName,
 			Title:            c.updateAPIServiceRevisionTitle(serviceBody),
 			Attributes:       c.buildAPIResourceAttributes(serviceBody, revAttributes, false),
-			Tags:             mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish()),
+			Tags:             c.mapToTagsArray(serviceBody.Tags),
 		},
 		Spec:  c.buildAPIServiceRevisionSpec(serviceBody),
 		Owner: c.getOwnerObject(serviceBody, false),
@@ -77,7 +77,7 @@ func (c *ServiceClient) updateRevisionResource(revision *v1alpha1.APIServiceRevi
 	revision.ResourceMeta.Metadata.ResourceVersion = ""
 	revision.Title = serviceBody.NameToPush
 	revision.ResourceMeta.Attributes = c.buildAPIResourceAttributes(serviceBody, revision.ResourceMeta.Attributes, false)
-	revision.ResourceMeta.Tags = mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish())
+	revision.ResourceMeta.Tags = c.mapToTagsArray(serviceBody.Tags)
 	revision.Spec = c.buildAPIServiceRevisionSpec(serviceBody)
 	revision.Owner = c.getOwnerObject(serviceBody, false)
 	return revision

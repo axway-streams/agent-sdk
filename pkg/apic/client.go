@@ -190,7 +190,7 @@ func (c *ServiceClient) SetConfig(cfg corecfg.CentralConfig) {
 }
 
 // mapToTagsArray -
-func mapToTagsArray(m map[string]interface{}, additionalTagsToPublish string) []string {
+func (c *ServiceClient) mapToTagsArray(m map[string]interface{}) []string {
 	strArr := []string{}
 
 	for key, val := range m {
@@ -212,7 +212,7 @@ func mapToTagsArray(m map[string]interface{}, additionalTagsToPublish string) []
 	}
 
 	// Add any tags from config
-	additionalTags := additionalTagsToPublish
+	additionalTags := c.cfg.GetTagsToPublish()
 	if additionalTags != "" {
 		additionalTagsArray := strings.Split(additionalTags, ",")
 

@@ -59,7 +59,7 @@ func (c *ServiceClient) buildConsumerInstanceSpec(serviceBody *ServiceBody, doc 
 		Version:            serviceBody.Version,
 		State:              serviceBody.State,
 		Status:             serviceBody.Status,
-		Tags:               mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish()),
+		Tags:               c.mapToTagsArray(serviceBody.Tags),
 		Documentation:      doc,
 		OwningTeam:         owningTeam,
 		Subscription: v1alpha1.ConsumerInstanceSpecSubscription{
@@ -137,7 +137,7 @@ func (c *ServiceClient) buildConsumerInstance(serviceBody *ServiceBody, consumer
 			Name:             consumerInstanceName,
 			Title:            serviceBody.NameToPush,
 			Attributes:       c.buildAPIResourceAttributes(serviceBody, instAttributes, false),
-			Tags:             mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish()),
+			Tags:             c.mapToTagsArray(serviceBody.Tags),
 		},
 		Spec:  c.buildConsumerInstanceSpec(serviceBody, doc, serviceBody.categoryNames),
 		Owner: c.getOwnerObject(serviceBody, false),
@@ -151,7 +151,7 @@ func (c *ServiceClient) updateConsumerInstanceResource(consumerInstance *v1alpha
 		consumerInstance.ResourceMeta.Attributes[k] = v
 	}
 	consumerInstance.ResourceMeta.Attributes = c.buildAPIResourceAttributes(serviceBody, consumerInstance.ResourceMeta.Attributes, false)
-	consumerInstance.ResourceMeta.Tags = mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish())
+	consumerInstance.ResourceMeta.Tags = c.mapToTagsArray(serviceBody.Tags)
 	// use existing categories only if mappings have not been configured
 	categories := consumerInstance.Spec.Categories
 	if corecfg.IsMappingConfigured() {

@@ -35,7 +35,7 @@ func (c *ServiceClient) buildAPIServiceResource(serviceBody *ServiceBody, servic
 			Name:             serviceName,
 			Title:            serviceBody.NameToPush,
 			Attributes:       c.buildAPIResourceAttributes(serviceBody, nil, true),
-			Tags:             mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish()),
+			Tags:             c.mapToTagsArray(serviceBody.Tags),
 		},
 		Spec:  c.buildAPIServiceSpec(serviceBody),
 		Owner: c.getOwnerObject(serviceBody, true),
@@ -59,7 +59,7 @@ func (c *ServiceClient) updateAPIServiceResource(apiSvc *v1alpha1.APIService, se
 	apiSvc.ResourceMeta.Metadata.ResourceVersion = ""
 	apiSvc.Title = serviceBody.NameToPush
 	apiSvc.ResourceMeta.Attributes = c.buildAPIResourceAttributes(serviceBody, apiSvc.ResourceMeta.Attributes, true)
-	apiSvc.ResourceMeta.Tags = mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish())
+	apiSvc.ResourceMeta.Tags = c.mapToTagsArray(serviceBody.Tags)
 	apiSvc.Spec.Description = serviceBody.Description
 	apiSvc.Owner = c.getOwnerObject(serviceBody, true)
 	if serviceBody.Image != "" {
@@ -80,12 +80,12 @@ func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIS
 	httpMethod := http.MethodPost
 	serviceBody.serviceContext.serviceAction = addAPI
 
+	// If service exists, update existing service
 	apiService, err := c.getAPIServiceByExternalAPIID(serviceBody)
 	if err != nil {
 		return nil, err
 	}
 
-	// If service exists, update existing service
 	if apiService != nil {
 		serviceName = apiService.Name
 		serviceBody.serviceContext.serviceAction = updateAPI
@@ -95,6 +95,8 @@ func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIS
 	} else {
 		apiService = c.buildAPIServiceResource(serviceBody, serviceName)
 	}
+
+	// spec needs to adhere to environment schema
 
 	buffer, err := json.Marshal(apiService)
 	if err != nil {
