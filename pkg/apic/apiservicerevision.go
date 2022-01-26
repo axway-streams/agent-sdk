@@ -13,6 +13,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Axway/agent-sdk/pkg/apic/definitions"
+
 	coreapi "github.com/Axway/agent-sdk/pkg/api"
 	utilerrors "github.com/Axway/agent-sdk/pkg/util/errors"
 
@@ -64,7 +66,7 @@ func (c *ServiceClient) buildAPIServiceRevisionResource(serviceBody *ServiceBody
 			Name:             revisionName,
 			Title:            c.updateAPIServiceRevisionTitle(serviceBody),
 			Attributes:       c.buildAPIResourceAttributes(serviceBody, revAttributes, false),
-			Tags:             c.mapToTagsArray(serviceBody.Tags),
+			Tags:             mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish()),
 		},
 		Spec:  c.buildAPIServiceRevisionSpec(serviceBody),
 		Owner: c.getOwnerObject(serviceBody, false),
@@ -75,7 +77,7 @@ func (c *ServiceClient) updateRevisionResource(revision *v1alpha1.APIServiceRevi
 	revision.ResourceMeta.Metadata.ResourceVersion = ""
 	revision.Title = serviceBody.NameToPush
 	revision.ResourceMeta.Attributes = c.buildAPIResourceAttributes(serviceBody, revision.ResourceMeta.Attributes, false)
-	revision.ResourceMeta.Tags = c.mapToTagsArray(serviceBody.Tags)
+	revision.ResourceMeta.Tags = mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish())
 	revision.Spec = c.buildAPIServiceRevisionSpec(serviceBody)
 	revision.Owner = c.getOwnerObject(serviceBody, false)
 	return revision
@@ -122,7 +124,7 @@ func (c *ServiceClient) processRevision(serviceBody *ServiceBody) error {
 			revisionName = revisionPrefix + "." + strconv.Itoa(revisionCount)
 		}
 		if serviceBody.serviceContext.previousRevision != nil {
-			revAttributes[AttrPreviousAPIServiceRevisionID] = serviceBody.serviceContext.previousRevision.Metadata.ID
+			revAttributes[definitions.AttrPreviousAPIServiceRevisionID] = serviceBody.serviceContext.previousRevision.Metadata.ID
 		}
 		revision = c.buildAPIServiceRevisionResource(serviceBody, revAttributes, revisionName)
 		log.Infof("Creating API Service revision for %v-%v in environment %v", serviceBody.APIName, serviceBody.Version, c.cfg.GetEnvironmentName())

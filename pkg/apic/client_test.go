@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	cache2 "github.com/Axway/agent-sdk/pkg/agent/cache"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Axway/agent-sdk/pkg/api"
@@ -16,7 +18,7 @@ import (
 
 func TestNewClient(t *testing.T) {
 	cfg := corecfg.NewCentralConfig(corecfg.DiscoveryAgent)
-	client := New(cfg, MockTokenGetter)
+	client := New(cfg, MockTokenGetter, cache2.NewAgentCacheManager(cfg))
 	assert.NotNil(t, client)
 }
 
@@ -47,7 +49,7 @@ func TestMapTagsToArray(t *testing.T) {
 
 	tag4Value := "value4"
 	tags := map[string]interface{}{"tag1": "value1", "tag2": "", "tag3": "value3", "tag4": &tag4Value}
-	result := svcClient.mapToTagsArray(tags)
+	result := mapToTagsArray(tags, svcClient.cfg.GetTagsToPublish())
 	assert.Equal(t, 4, len(result))
 	assert.True(t, arrContains(result, "tag1_value1"))
 	assert.True(t, arrContains(result, "tag2"))
@@ -55,7 +57,7 @@ func TestMapTagsToArray(t *testing.T) {
 
 	cfg := GetTestServiceClientCentralConfiguration(svcClient)
 	cfg.TagsToPublish = "bar"
-	result = svcClient.mapToTagsArray(tags)
+	result = mapToTagsArray(tags, svcClient.cfg.GetTagsToPublish())
 	assert.Equal(t, 5, len(result))
 	assert.True(t, arrContains(result, "tag1_value1"))
 	assert.True(t, arrContains(result, "tag2"))

@@ -35,7 +35,7 @@ func (c *ServiceClient) buildAPIServiceResource(serviceBody *ServiceBody, servic
 			Name:             serviceName,
 			Title:            serviceBody.NameToPush,
 			Attributes:       c.buildAPIResourceAttributes(serviceBody, nil, true),
-			Tags:             c.mapToTagsArray(serviceBody.Tags),
+			Tags:             mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish()),
 		},
 		Spec:  c.buildAPIServiceSpec(serviceBody),
 		Owner: c.getOwnerObject(serviceBody, true),
@@ -59,7 +59,7 @@ func (c *ServiceClient) updateAPIServiceResource(apiSvc *v1alpha1.APIService, se
 	apiSvc.ResourceMeta.Metadata.ResourceVersion = ""
 	apiSvc.Title = serviceBody.NameToPush
 	apiSvc.ResourceMeta.Attributes = c.buildAPIResourceAttributes(serviceBody, apiSvc.ResourceMeta.Attributes, true)
-	apiSvc.ResourceMeta.Tags = c.mapToTagsArray(serviceBody.Tags)
+	apiSvc.ResourceMeta.Tags = mapToTagsArray(serviceBody.Tags, c.cfg.GetTagsToPublish())
 	apiSvc.Spec.Description = serviceBody.Description
 	apiSvc.Owner = c.getOwnerObject(serviceBody, true)
 	if serviceBody.Image != "" {
@@ -80,12 +80,12 @@ func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIS
 	httpMethod := http.MethodPost
 	serviceBody.serviceContext.serviceAction = addAPI
 
-	// If service exists, update existing service
 	apiService, err := c.getAPIServiceByExternalAPIID(serviceBody)
 	if err != nil {
 		return nil, err
 	}
 
+	// If service exists, update existing service
 	if apiService != nil {
 		serviceName = apiService.Name
 		serviceBody.serviceContext.serviceAction = updateAPI
@@ -95,8 +95,6 @@ func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIS
 	} else {
 		apiService = c.buildAPIServiceResource(serviceBody, serviceName)
 	}
-
-	// spec needs to adhere to environment schema
 
 	buffer, err := json.Marshal(apiService)
 	if err != nil {
@@ -111,14 +109,12 @@ func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIS
 
 // deleteService
 func (c *ServiceClient) deleteServiceByAPIID(externalAPIID string) error {
-	svc, err := c.getAPIServiceByAttribute(externalAPIID, "")
-	if err != nil {
-		return err
-	}
+	svc := c.caches.GetAPIServiceWithAPIID(externalAPIID)
 	if svc == nil {
 		return errors.New("no API Service found for externalAPIID " + externalAPIID)
 	}
-	_, err = c.apiServiceDeployAPI(http.MethodDelete, c.cfg.GetServicesURL()+"/"+svc.Name, nil)
+
+	_, err := c.apiServiceDeployAPI(http.MethodDelete, c.cfg.GetServicesURL()+"/"+svc.Name, nil)
 	if err != nil {
 		return err
 	}
@@ -128,51 +124,22 @@ func (c *ServiceClient) deleteServiceByAPIID(externalAPIID string) error {
 // getAPIServiceByExternalAPIID - Returns the API service based on external api identification
 func (c *ServiceClient) getAPIServiceByExternalAPIID(serviceBody *ServiceBody) (*v1alpha1.APIService, error) {
 	if serviceBody.PrimaryKey != "" {
-		apiService, err := c.getAPIServiceByAttribute(serviceBody.RestAPIID, serviceBody.PrimaryKey)
-		if apiService != nil || err != nil {
-			return apiService, err
+		ri := c.caches.GetAPIServiceWithPrimaryKey(serviceBody.PrimaryKey)
+		if ri == nil {
+			return nil, nil
 		}
-	}
-	return c.getAPIServiceByAttribute(serviceBody.RestAPIID, "")
-}
-
-// getAPIServiceByAttribute - Returns the API service based on attribute
-func (c *ServiceClient) getAPIServiceByAttribute(externalAPIID, primaryKey string) (*v1alpha1.APIService, error) {
-	headers, err := c.createHeader()
-	if err != nil {
-		return nil, err
-	}
-	query := map[string]string{}
-	if primaryKey != "" {
-		query["query"] = "attributes." + AttrExternalAPIPrimaryKey + "==\"" + primaryKey + "\""
-	} else {
-		query["query"] = "attributes." + AttrExternalAPIID + "==\"" + externalAPIID + "\""
+		apiSvc := &v1alpha1.APIService{}
+		err := apiSvc.FromInstance(ri)
+		return apiSvc, err
 	}
 
-	request := coreapi.Request{
-		Method:      coreapi.GET,
-		URL:         c.cfg.GetServicesURL(),
-		Headers:     headers,
-		QueryParams: query,
-	}
-
-	response, err := c.apiClient.Send(request)
-	if err != nil {
-		return nil, err
-	}
-	if response.Code != http.StatusOK {
-		if response.Code != http.StatusNotFound {
-			responseErr := readResponseErrors(response.Code, response.Body)
-			return nil, utilerrors.Wrap(ErrRequestQuery, responseErr)
-		}
+	ri := c.caches.GetAPIServiceWithAPIID(serviceBody.RestAPIID)
+	if ri == nil {
 		return nil, nil
 	}
-	apiServices := make([]v1alpha1.APIService, 0)
-	json.Unmarshal(response.Body, &apiServices)
-	if len(apiServices) > 0 {
-		return &apiServices[0], nil
-	}
-	return nil, nil
+	apiSvc := &v1alpha1.APIService{}
+	err := apiSvc.FromInstance(ri)
+	return apiSvc, err
 }
 
 // rollbackAPIService - if the process to add api/revision/instance fails, delete the api that was created

@@ -11,7 +11,6 @@ import (
 	"github.com/Axway/agent-sdk/pkg/api"
 	v1 "github.com/Axway/agent-sdk/pkg/apic/apiserver/models/api/v1"
 	"github.com/Axway/agent-sdk/pkg/apic/apiserver/models/management/v1alpha1"
-	"github.com/Axway/agent-sdk/pkg/cache"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -62,8 +61,6 @@ func TestCreateService(t *testing.T) {
 	})
 
 	// Setup category cache
-	categoryCache := cache.New()
-	teamCache := cache.New()
 	for _, category := range testCategories {
 		newID := uuid.New().String()
 		categoryInstance := &v1.ResourceInstance{
@@ -73,9 +70,8 @@ func TestCreateService(t *testing.T) {
 			},
 			Spec: map[string]interface{}{},
 		}
-		categoryCache.SetWithSecondaryKey(newID, category, categoryInstance)
+		client.caches.GetCategoryCache().SetWithSecondaryKey(newID, category, categoryInstance)
 	}
-	client.AddCache(categoryCache, teamCache)
 
 	// Test oas2 object
 	oas2Json, _ := os.Open("./testdata/petstore-swagger2.json") // OAS2

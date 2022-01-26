@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Axway/agent-sdk/pkg/apic/definitions"
+
 	coreapi "github.com/Axway/agent-sdk/pkg/api"
 	v1 "github.com/Axway/agent-sdk/pkg/apic/apiserver/models/api/v1"
 	"github.com/Axway/agent-sdk/pkg/apic/apiserver/models/management/v1alpha1"
@@ -32,7 +34,7 @@ const (
 // PublishService - processes the API to create/update apiservice, revision, instance and consumer instance
 func (c *ServiceClient) PublishService(serviceBody *ServiceBody) (*v1alpha1.APIService, error) {
 	// if the team is set in the config, use that team name and id for all services
-	if strings.ToLower(c.cfg.GetTeamName()) != "" {
+	if c.cfg.GetTeamName() != "" {
 		if teamID, found := c.getTeamFromCache(c.cfg.GetTeamName()); found {
 			serviceBody.TeamName = c.cfg.GetTeamName()
 			serviceBody.teamID = teamID
@@ -44,15 +46,20 @@ func (c *ServiceClient) PublishService(serviceBody *ServiceBody) (*v1alpha1.APIS
 	}
 	// Update description title after creating APIService to include the stage name if it exists
 	c.postAPIServiceUpdate(serviceBody)
+	// RevisionProcessor
 	err = c.processRevision(serviceBody)
 	if err != nil {
 		return nil, err
 	}
+
+	// InstanceProcessor
 	err = c.processInstance(serviceBody)
 	if err != nil {
 		return nil, err
 	}
+
 	if c.cfg.IsPublishToEnvironmentAndCatalogMode() {
+		// ConsumerInstanceProcessor
 		err = c.processConsumerInstance(serviceBody)
 		if err != nil {
 			return nil, err
@@ -164,15 +171,15 @@ func (c *ServiceClient) buildAPIResourceAttributes(serviceBody *ServiceBody, add
 	externalAPIID := serviceBody.RestAPIID
 	// check to see if its an APIService
 	if !isAPIService && serviceBody.Stage != "" {
-		attributes[AttrExternalAPIStage] = serviceBody.Stage
+		attributes[definitions.AttrExternalAPIStage] = serviceBody.Stage
 	}
 	if serviceBody.PrimaryKey != "" {
-		attributes[AttrExternalAPIPrimaryKey] = serviceBody.PrimaryKey
+		attributes[definitions.AttrExternalAPIPrimaryKey] = serviceBody.PrimaryKey
 	}
 
-	attributes[AttrExternalAPIID] = externalAPIID
-	attributes[AttrExternalAPIName] = serviceBody.APIName
-	attributes[AttrCreatedBy] = serviceBody.CreatedBy
+	attributes[definitions.AttrExternalAPIID] = externalAPIID
+	attributes[definitions.AttrExternalAPIName] = serviceBody.APIName
+	attributes[definitions.AttrCreatedBy] = serviceBody.CreatedBy
 
 	return attributes
 }

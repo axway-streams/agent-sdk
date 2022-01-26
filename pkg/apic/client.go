@@ -7,6 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Axway/agent-sdk/pkg/apic/definitions"
+
+	cache2 "github.com/Axway/agent-sdk/pkg/agent/cache"
+
 	coreapi "github.com/Axway/agent-sdk/pkg/api"
 	apiv1 "github.com/Axway/agent-sdk/pkg/apic/apiserver/models/api/v1"
 	catalog "github.com/Axway/agent-sdk/pkg/apic/apiserver/models/catalog/v1alpha1"
@@ -74,19 +78,20 @@ type Client interface {
 	GetAPIServiceInstanceByName(serviceInstanceName string) (*v1alpha1.APIServiceInstance, error)
 	GetAPIRevisionByName(serviceRevisionName string) (*v1alpha1.APIServiceRevision, error)
 	CreateCategory(categoryName string) (*catalog.Category, error)
-	AddCache(categoryCache, teamCache cache.Cache)
 	GetOrCreateCategory(category string) string
 	GetEnvironment() (*v1alpha1.Environment, error)
-	GetCentralTeamByName(teamName string) (*PlatformTeam, error)
-	GetTeam(queryParams map[string]string) ([]PlatformTeam, error)
+	GetCentralTeamByName(teamName string) (*definitions.PlatformTeam, error)
+	GetTeam(queryParams map[string]string) ([]definitions.PlatformTeam, error)
 	GetAccessControlList(aclName string) (*v1alpha1.AccessControlList, error)
 	UpdateAccessControlList(acl *v1alpha1.AccessControlList) (*v1alpha1.AccessControlList, error)
 	CreateAccessControlList(acl *v1alpha1.AccessControlList) (*v1alpha1.AccessControlList, error)
 }
 
 // New creates a new Client
-func New(cfg corecfg.CentralConfig, tokenRequester auth.PlatformTokenGetter) Client {
-	serviceClient := &ServiceClient{}
+func New(cfg corecfg.CentralConfig, tokenRequester auth.PlatformTokenGetter, caches cache2.Manager) Client {
+	serviceClient := &ServiceClient{
+		caches: caches,
+	}
 	serviceClient.SetTokenGetter(tokenRequester)
 	serviceClient.subscriptionSchemaCache = cache.New()
 	serviceClient.initClient(cfg)
@@ -94,52 +99,57 @@ func New(cfg corecfg.CentralConfig, tokenRequester auth.PlatformTokenGetter) Cli
 	return serviceClient
 }
 
-// AddCache - add the pointer to the category and team caches that the agent package will update
-func (c *ServiceClient) AddCache(categoryCache, teamCache cache.Cache) {
-	c.categoryCache = categoryCache
-	c.teamCache = teamCache
-}
-
 // getTeamFromCache -
 func (c *ServiceClient) getTeamFromCache(teamName string) (string, bool) {
-	if c.teamCache == nil {
-		return "", true
-	}
-	id, found := c.teamCache.Get(teamName)
+	var team *definitions.PlatformTeam
 	if teamName == "" {
-		// get the default team
-		id, found = c.teamCache.GetBySecondaryKey(DefaultTeamKey)
+		team = c.caches.GetDefaultTeam()
+		if team == nil {
+			return "", false
+		}
+		return team.ID, true
 	}
-	if found != nil {
+
+	team = c.caches.GetTeamByName(teamName)
+	if team == nil {
 		return "", false
 	}
-	return id.(string), true
+
+	return team.ID, true
 }
 
 // GetOrCreateCategory - Returns the value on published proxy
 func (c *ServiceClient) GetOrCreateCategory(category string) string {
-	if c.categoryCache != nil {
-		categoryInterface, _ := c.categoryCache.GetBySecondaryKey(category)
-		if categoryInterface == nil {
-			if !corecfg.IsCategoryAutocreationEnabled() {
-				log.Warnf("Category auto creation is disabled: agent is not allowed to create %s category", category)
-				return ""
-			}
-			// create the category and add it to the cache
-			newCategory, err := c.CreateCategory(category)
-			if err != nil {
-				log.Errorf(errors.Wrap(ErrCategoryCreate, err.Error()).FormatError(category).Error())
-				return ""
-			}
-			categoryInterface, _ = newCategory.AsInstance()
-			log.Infof("Created new category %s (%s)", newCategory.Title, newCategory.Name)
-			c.categoryCache.SetWithSecondaryKey(newCategory.Name, newCategory.Title, categoryInterface)
-		}
-		cat := categoryInterface.(*apiv1.ResourceInstance)
-		return cat.Name
+	categoryCache := c.caches.GetCategoryCache()
+	if categoryCache == nil {
+		log.Errorf("category cache has not been initialized")
+		return ""
 	}
-	log.Errorf("Category cache has not been initialized")
-	return ""
+
+	categoryInterface, _ := categoryCache.GetBySecondaryKey(category)
+	if categoryInterface == nil {
+		if !corecfg.IsCategoryAutocreationEnabled() {
+			log.Warnf("Category auto creation is disabled: agent is not allowed to create %s category", category)
+			return ""
+		}
+
+		// create the category and add it to the cache
+		newCategory, err := c.CreateCategory(category)
+		if err != nil {
+			log.Errorf(errors.Wrap(ErrCategoryCreate, err.Error()).FormatError(category).Error())
+			return ""
+		}
+		categoryInterface, _ = newCategory.AsInstance()
+		log.Infof("Created new category %s (%s)", newCategory.Title, newCategory.Name)
+		categoryCache.SetWithSecondaryKey(newCategory.Name, newCategory.Title, categoryInterface)
+	}
+
+	cat, ok := categoryInterface.(*apiv1.ResourceInstance)
+	if !ok {
+		return ""
+	}
+
+	return cat.Name
 }
 
 // initClient - config change handler
@@ -180,7 +190,7 @@ func (c *ServiceClient) SetConfig(cfg corecfg.CentralConfig) {
 }
 
 // mapToTagsArray -
-func (c *ServiceClient) mapToTagsArray(m map[string]interface{}) []string {
+func mapToTagsArray(m map[string]interface{}, additionalTagsToPublish string) []string {
 	strArr := []string{}
 
 	for key, val := range m {
@@ -202,7 +212,7 @@ func (c *ServiceClient) mapToTagsArray(m map[string]interface{}) []string {
 	}
 
 	// Add any tags from config
-	additionalTags := c.cfg.GetTagsToPublish()
+	additionalTags := additionalTagsToPublish
 	if additionalTags != "" {
 		additionalTagsArray := strings.Split(additionalTags, ",")
 
@@ -389,7 +399,7 @@ func (c *ServiceClient) sendServerRequest(url string, headers, query map[string]
 }
 
 // GetPlatformUserInfo - request the platform user info
-func (c *ServiceClient) getPlatformUserInfo(id string) (*PlatformUserInfo, error) {
+func (c *ServiceClient) getPlatformUserInfo(id string) (*definitions.PlatformUserInfo, error) {
 	headers, err := c.createHeader()
 	if err != nil {
 		return nil, err
@@ -406,7 +416,7 @@ func (c *ServiceClient) getPlatformUserInfo(id string) (*PlatformUserInfo, error
 		return nil, reqErr
 	}
 
-	var platformUserInfo PlatformUserInfo
+	var platformUserInfo definitions.PlatformUserInfo
 	err = json.Unmarshal(platformUserBytes, &platformUserInfo)
 	if err != nil {
 		return nil, err
@@ -444,7 +454,7 @@ func (c *ServiceClient) GetUserName(id string) (string, error) {
 }
 
 // GetCentralTeamByName - returns the team based on team name
-func (c *ServiceClient) GetCentralTeamByName(teamName string) (*PlatformTeam, error) {
+func (c *ServiceClient) GetCentralTeamByName(teamName string) (*definitions.PlatformTeam, error) {
 	// Query for the default, if no teamName is given
 	queryParams := map[string]string{}
 
@@ -479,7 +489,7 @@ func (c *ServiceClient) GetCentralTeamByName(teamName string) (*PlatformTeam, er
 }
 
 // GetTeam - returns the team ID based on filter
-func (c *ServiceClient) GetTeam(filterQueryParams map[string]string) ([]PlatformTeam, error) {
+func (c *ServiceClient) GetTeam(filterQueryParams map[string]string) ([]definitions.PlatformTeam, error) {
 	headers, err := c.createHeader()
 	if err != nil {
 		return nil, err
@@ -494,7 +504,7 @@ func (c *ServiceClient) GetTeam(filterQueryParams map[string]string) ([]Platform
 		return nil, reqErr
 	}
 
-	var platformTeams []PlatformTeam
+	var platformTeams []definitions.PlatformTeam
 	err = json.Unmarshal(response, &platformTeams)
 	if err != nil {
 		return nil, err
