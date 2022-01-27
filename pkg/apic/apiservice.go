@@ -2,7 +2,6 @@ package apic
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	coreapi "github.com/Axway/agent-sdk/pkg/api"
@@ -70,7 +69,7 @@ func (c *ServiceClient) updateAPIServiceResource(apiSvc *v1alpha1.APIService, se
 	}
 }
 
-//processService -
+// processService -
 func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIService, error) {
 	uuid, _ := uuid.NewUUID()
 	serviceName := uuid.String()
@@ -107,20 +106,6 @@ func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIS
 		serviceBody.serviceContext.serviceName = serviceName
 	}
 	return apiService, err
-}
-
-// deleteService
-func (c *ServiceClient) deleteServiceByAPIID(externalAPIID string) error {
-	svc := c.caches.GetAPIServiceWithAPIID(externalAPIID)
-	if svc == nil {
-		return errors.New("no API Service found for externalAPIID " + externalAPIID)
-	}
-
-	_, err := c.apiServiceDeployAPI(http.MethodDelete, c.cfg.GetServicesURL()+"/"+svc.Name, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *ServiceClient) getAPIServiceByExternalAPIID(apiID string) (*v1alpha1.APIService, error) {

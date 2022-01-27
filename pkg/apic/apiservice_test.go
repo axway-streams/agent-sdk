@@ -388,7 +388,7 @@ func TestGetConsumerInstancesByExternalAPIID(t *testing.T) {
 func TestDeleteServiceByAPIID(t *testing.T) {
 	client, httpClient := GetTestServiceClient()
 	httpClient.ResponseCode = http.StatusRequestTimeout
-	err := client.DeleteServiceByAPIID("12345")
+	err := client.DeleteServiceByName("12345")
 	assert.NotNil(t, err)
 
 	// list - ok
@@ -409,7 +409,7 @@ func TestDeleteServiceByAPIID(t *testing.T) {
 	}
 	ri, _ := svc.AsInstance()
 	client.caches.AddAPIService(ri)
-	err = client.DeleteServiceByAPIID("12345")
+	err = client.DeleteServiceByName("12345")
 	assert.Nil(t, err)
 }
 

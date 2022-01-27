@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Axway/agent-sdk/pkg/apic/definitions"
@@ -68,9 +69,13 @@ func (c *ServiceClient) PublishService(serviceBody *ServiceBody) (*v1alpha1.APIS
 	return apiSvc, nil
 }
 
-// DeleteServiceByAPIID -
-func (c *ServiceClient) DeleteServiceByAPIID(externalAPIID string) error {
-	return c.deleteServiceByAPIID(externalAPIID)
+// DeleteServiceByName -
+func (c *ServiceClient) DeleteServiceByName(apiName string) error {
+	_, err := c.apiServiceDeployAPI(http.MethodDelete, c.cfg.GetServicesURL()+"/"+apiName, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // RegisterSubscriptionWebhook - Adds a new Subscription webhook. There is a single webhook
@@ -106,9 +111,13 @@ func (c *ServiceClient) DeleteConsumerInstance(instanceName string) error {
 	return c.deleteConsumerInstance(instanceName)
 }
 
-// DeleteAPIServiceInstance -
-func (c *ServiceClient) DeleteAPIServiceInstance(instanceName string) error {
-	return c.deleteAPIServiceInstance(instanceName)
+// DeleteAPIServiceInstance deletes an api service instance in central by name
+func (c *ServiceClient) DeleteAPIServiceInstance(name string) error {
+	_, err := c.apiServiceDeployAPI(http.MethodDelete, c.cfg.GetInstancesURL()+"/"+name, nil)
+	if err != nil && err.Error() != strconv.Itoa(http.StatusNotFound) {
+		return err
+	}
+	return nil
 }
 
 // GetConsumerInstanceByID -
