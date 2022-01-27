@@ -55,7 +55,7 @@ func GetTestServiceClient() (*ServiceClient, *api.MockHTTPClient) {
 		cfg:                                cfg,
 		tokenRequester:                     MockTokenGetter,
 		subscriptionSchemaCache:            cache.New(),
-		caches:                             cache2.NewAgentCacheManager(cfg),
+		caches:                             cache2.NewAgentCacheManager(cfg, false),
 		apiClient:                          apiClient,
 		DefaultSubscriptionApprovalWebhook: webhook,
 		DefaultSubscriptionSchema:          NewSubscriptionSchema(cfg.GetEnvironmentName() + SubscriptionSchemaNameSuffix),

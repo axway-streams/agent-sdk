@@ -18,7 +18,7 @@ import (
 
 func TestNewClient(t *testing.T) {
 	cfg := corecfg.NewCentralConfig(corecfg.DiscoveryAgent)
-	client := New(cfg, MockTokenGetter, cache2.NewAgentCacheManager(cfg))
+	client := New(cfg, MockTokenGetter, cache2.NewAgentCacheManager(cfg, false))
 	assert.NotNil(t, client)
 }
 

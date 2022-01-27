@@ -122,7 +122,7 @@ func TestTeamCache(t *testing.T) {
 			defer s.Close()
 
 			cfg := createCentralCfg(s.URL, "env")
-			caches := cache.NewAgentCacheManager(cfg)
+			caches := cache.NewAgentCacheManager(cfg, false)
 
 			for _, item := range test.originalItems {
 				caches.AddTeam(item)
