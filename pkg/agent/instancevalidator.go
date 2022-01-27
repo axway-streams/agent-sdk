@@ -87,6 +87,7 @@ func (j *instanceValidator) deleteServiceInstanceOrService(serviceInstance *apiV
 		// Todo clean up other cached apiserviceinstances related to apiservice
 		if j.isAgentPollMode {
 			agent.cacheManager.DeleteAPIService(externalAPIID)
+			agent.cacheManager.DeleteAPIServiceInstance(serviceInstance.Metadata.ID)
 		}
 	} else {
 		log.Infof("API no longer exists on the dataplane, deleting the catalog item %s", serviceInstance.Title)

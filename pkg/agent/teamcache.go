@@ -44,8 +44,8 @@ func (j *centralTeamsCache) Execute() error {
 		savedTeam := j.cache.GetTeamById(team.ID)
 		if savedTeam == nil {
 			j.cache.AddTeam(&team)
-			log.Tracef("sending %s (%s) team to acl", savedTeam.Name, savedTeam.ID)
-			j.teamChannel <- savedTeam.ID
+			log.Tracef("sending %s (%s) team to acl", team.Name, team.ID)
+			j.teamChannel <- team.ID
 		}
 	}
 
@@ -77,16 +77,4 @@ func getJobInterval() time.Duration {
 	}
 
 	return interval
-}
-
-func GetTeamFromCache(teamName string) (string, bool) {
-	id, found := agent.teamMap.Get(teamName)
-	if teamName == "" {
-		// get the default team
-		id, found = agent.teamMap.GetBySecondaryKey(apic.DefaultTeamKey)
-	}
-	if found != nil {
-		return "", false
-	}
-	return id.(string), true
 }

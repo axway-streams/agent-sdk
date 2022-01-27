@@ -81,7 +81,7 @@ func (c *ServiceClient) processService(serviceBody *ServiceBody) (*v1alpha1.APIS
 	serviceBody.serviceContext.serviceAction = addAPI
 
 	// If service exists, update existing service
-	apiService, err := c.getAPIServiceByExternalAPIID(serviceBody)
+	apiService, err := c.getAPIServiceFromCache(serviceBody)
 	if err != nil {
 		return nil, err
 	}
@@ -123,25 +123,31 @@ func (c *ServiceClient) deleteServiceByAPIID(externalAPIID string) error {
 	return nil
 }
 
-// getAPIServiceByExternalAPIID - Returns the API service based on external api identification
-func (c *ServiceClient) getAPIServiceByExternalAPIID(serviceBody *ServiceBody) (*v1alpha1.APIService, error) {
-	if serviceBody.PrimaryKey != "" {
-		ri := c.caches.GetAPIServiceWithPrimaryKey(serviceBody.PrimaryKey)
-		if ri == nil {
-			return nil, nil
-		}
-		apiSvc := &v1alpha1.APIService{}
-		err := apiSvc.FromInstance(ri)
-		return apiSvc, err
-	}
-
-	ri := c.caches.GetAPIServiceWithAPIID(serviceBody.RestAPIID)
+func (c *ServiceClient) getAPIServiceByExternalAPIID(apiID string) (*v1alpha1.APIService, error) {
+	ri := c.caches.GetAPIServiceWithAPIID(apiID)
 	if ri == nil {
 		return nil, nil
 	}
 	apiSvc := &v1alpha1.APIService{}
 	err := apiSvc.FromInstance(ri)
 	return apiSvc, err
+}
+
+func (c *ServiceClient) getAPIServiceByPrimaryKey(primaryKey string) (*v1alpha1.APIService, error) {
+	ri := c.caches.GetAPIServiceWithPrimaryKey(primaryKey)
+	if ri == nil {
+		return nil, nil
+	}
+	apiSvc := &v1alpha1.APIService{}
+	err := apiSvc.FromInstance(ri)
+	return apiSvc, err
+}
+
+func (c *ServiceClient) getAPIServiceFromCache(serviceBody *ServiceBody) (*v1alpha1.APIService, error) {
+	if serviceBody.PrimaryKey != "" {
+		return c.getAPIServiceByPrimaryKey(serviceBody.PrimaryKey)
+	}
+	return c.getAPIServiceByExternalAPIID(serviceBody.RestAPIID)
 }
 
 // rollbackAPIService - if the process to add api/revision/instance fails, delete the api that was created

@@ -295,11 +295,11 @@ func (c *cacheManager) GetAPIServiceInstanceKeys() []string {
 
 // GetAPIServiceInstanceByID - returns resource from APIServiceInstance cache based on instance ID
 func (c *cacheManager) GetAPIServiceInstanceByID(instanceID string) (*v1.ResourceInstance, error) {
-	api, err := c.instanceMap.Get(instanceID)
-	if api != nil {
-		apiSvc, ok := api.(*v1.ResourceInstance)
+	item, err := c.instanceMap.Get(instanceID)
+	if item != nil {
+		instance, ok := item.(*v1.ResourceInstance)
 		if ok {
-			return apiSvc, nil
+			return instance, nil
 		}
 	}
 	return nil, err
