@@ -18,13 +18,13 @@ func TestTeamCache(t *testing.T) {
 	testCases := []struct {
 		name               string
 		teams              []*definitions.PlatformTeam
-		originalItems      []*definitions.PlatformTeam
-		expectedSavedTeams int
+		cached             []*definitions.PlatformTeam
+		expectedTeamsSaved int
 	}{
 		{
 			name:               "Should save one team to the cache",
-			expectedSavedTeams: 1,
-			originalItems:      []*definitions.PlatformTeam{},
+			expectedTeamsSaved: 1,
+			cached:             []*definitions.PlatformTeam{},
 			teams: []*definitions.PlatformTeam{
 				{
 					Name:    "TeamA",
@@ -35,8 +35,8 @@ func TestTeamCache(t *testing.T) {
 		},
 		{
 			name:               "Should save two teams to the cache, and skip one team that already exists",
-			expectedSavedTeams: 2,
-			originalItems: []*definitions.PlatformTeam{
+			expectedTeamsSaved: 2,
+			cached: []*definitions.PlatformTeam{
 				{
 					Name:    "TeamA",
 					ID:      "1",
@@ -63,8 +63,8 @@ func TestTeamCache(t *testing.T) {
 		},
 		{
 			name:               "Should save one team to the cache, and skip 3 that already exist",
-			expectedSavedTeams: 1,
-			originalItems: []*definitions.PlatformTeam{
+			expectedTeamsSaved: 1,
+			cached: []*definitions.PlatformTeam{
 				{
 					Name:    "TeamA",
 					ID:      "1",
@@ -124,7 +124,7 @@ func TestTeamCache(t *testing.T) {
 			cfg := createCentralCfg(s.URL, "env")
 			caches := cache.NewAgentCacheManager(cfg, false)
 
-			for _, item := range test.originalItems {
+			for _, item := range test.cached {
 				caches.AddTeam(item)
 			}
 
@@ -145,7 +145,7 @@ func TestTeamCache(t *testing.T) {
 			go job.Execute()
 			count := 0
 			for {
-				if count >= test.expectedSavedTeams {
+				if count >= test.expectedTeamsSaved {
 					break
 				}
 				select {
@@ -155,7 +155,7 @@ func TestTeamCache(t *testing.T) {
 				}
 			}
 
-			assert.Equal(t, test.expectedSavedTeams, count)
+			assert.Equal(t, test.expectedTeamsSaved, count)
 		})
 	}
 }
