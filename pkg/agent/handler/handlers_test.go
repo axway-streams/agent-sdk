@@ -108,7 +108,7 @@ func TestNewAPISvcHandler(t *testing.T) {
 			},
 		},
 	}
-	cacheManager := agentcache.NewAgentCacheManager(&config.CentralConfiguration{})
+	cacheManager := agentcache.NewAgentCacheManager(&config.CentralConfiguration{}, false)
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -198,7 +198,7 @@ func TestNewCategoryHandler(t *testing.T) {
 		},
 	}
 
-	cacheManager := agentcache.NewAgentCacheManager(&config.CentralConfiguration{})
+	cacheManager := agentcache.NewAgentCacheManager(&config.CentralConfiguration{}, false)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := NewCategoryHandler(cacheManager)
@@ -299,7 +299,7 @@ func TestNewInstanceHandler(t *testing.T) {
 		},
 	}
 
-	cacheManager := agentcache.NewAgentCacheManager(&config.CentralConfiguration{})
+	cacheManager := agentcache.NewAgentCacheManager(&config.CentralConfiguration{}, false)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := NewInstanceHandler(cacheManager)
