@@ -41,7 +41,7 @@ func (j *centralTeamsCache) Execute() error {
 	}
 
 	for _, team := range platformTeams {
-		savedTeam := j.cache.GetTeamById(team.ID)
+		savedTeam := j.cache.GetTeamByID(team.ID)
 		if savedTeam == nil {
 			j.cache.AddTeam(&team)
 			log.Tracef("sending %s (%s) team to acl", team.Name, team.ID)
