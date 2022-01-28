@@ -2,8 +2,28 @@ package apic
 
 import (
 	"fmt"
+	"math"
 	"sort"
 )
+
+// Supported data types
+const (
+	DataTypeString  = "string"
+	DataTypeArray   = "array"
+	DataTypeInteger = "integer"
+	DataTypeNumber  = "number"
+	DataTypeObject  = "object"
+)
+
+/*type GenericSubscriptionPropertyBuilder interface {
+	SetName(name string) SubscriptionPropertyBuilder
+	SetDescription(description string) SubscriptionPropertyBuilder
+	SetRequired() SubscriptionPropertyBuilder
+	SetReadOnly() SubscriptionPropertyBuilder
+	SetHidden() SubscriptionPropertyBuilder
+	SetAPICRefField(field string) SubscriptionPropertyBuilder
+	Build() (*SubscriptionSchemaPropertyDefinition, error)
+}*/
 
 // SubscriptionPropertyBuilder - used to build a subscription schmea property
 type SubscriptionPropertyBuilder interface {
@@ -18,6 +38,21 @@ type SubscriptionPropertyBuilder interface {
 	SetHidden() SubscriptionPropertyBuilder
 	SetAPICRefField(field string) SubscriptionPropertyBuilder
 	IsString() SubscriptionPropertyBuilder
+
+	IsNumber() SubscriptionPropertyBuilder
+	IsInteger() SubscriptionPropertyBuilder
+	SetMinValue(min float64) SubscriptionPropertyBuilder
+	SetMaxValue(max float64) SubscriptionPropertyBuilder
+
+	IsArray() SubscriptionPropertyBuilder
+	SetArrayItems(items []SubscriptionPropertyBuilder) SubscriptionPropertyBuilder
+	AddArrayItem(item SubscriptionPropertyBuilder) SubscriptionPropertyBuilder
+	SetMinArrayItems(min int) SubscriptionPropertyBuilder
+	SetMaxArrayItems(max int) SubscriptionPropertyBuilder
+
+	IsObject() SubscriptionPropertyBuilder
+	AddProperty(property SubscriptionPropertyBuilder) SubscriptionPropertyBuilder
+
 	Build() (*SubscriptionSchemaPropertyDefinition, error)
 }
 
@@ -29,12 +64,19 @@ type schemaProperty struct {
 	description    string
 	apicRefField   string
 	enums          []string
+	minValue       *float64 // We use a pointer to differentiate the "blank value" from a choosen 0 min value
+	maxValue       *float64 // We use a pointer to differentiate the "blank value" from a choosen 0 max value
+	items          []SubscriptionSchemaPropertyDefinition
+	minItems       int
+	maxItems       int
 	required       bool
 	readOnly       bool
 	hidden         bool
 	dataType       string
 	sortEnums      bool
 	firstEnumValue string
+
+	properties map[string]SubscriptionSchemaPropertyDefinition
 }
 
 // NewSubscriptionSchemaPropertyBuilder - Creates a new subscription schema property builder
@@ -129,9 +171,112 @@ func (p *schemaProperty) SetAPICRefField(field string) SubscriptionPropertyBuild
 // IsString - mark the datatype of the property as a string
 func (p *schemaProperty) IsString() SubscriptionPropertyBuilder {
 	if p.dataType != "" {
-		p.err = fmt.Errorf("The data type cannot be set to string, it is already set to %v", p.dataType)
+		p.err = fmt.Errorf("The data type cannot be set to %s, it is already set to %s", DataTypeString, p.dataType)
 	} else {
-		p.dataType = "string"
+		p.dataType = DataTypeString
+	}
+	return p
+}
+
+// IsNumber - mark the datatype of the property as a number
+func (p *schemaProperty) IsNumber() SubscriptionPropertyBuilder {
+	if p.dataType != "" {
+		p.err = fmt.Errorf("The data type cannot be set to %s, it is already set to %s", DataTypeNumber, p.dataType)
+	} else {
+		p.dataType = DataTypeNumber
+	}
+	return p
+}
+
+// IsInteger - mark the datatype of the property as an integer
+func (p *schemaProperty) IsInteger() SubscriptionPropertyBuilder {
+	if p.dataType != "" {
+		p.err = fmt.Errorf("The data type cannot be set to %s, it is already set to %s", DataTypeInteger, p.dataType)
+	} else {
+		p.dataType = DataTypeInteger
+	}
+	return p
+}
+
+// SetMinValue - set the minimum allowed value
+func (p *schemaProperty) SetMinValue(min float64) SubscriptionPropertyBuilder {
+	p.minValue = &min
+	return p
+}
+
+// SetMaxArrayItems - set the maximum items allowed in the the array
+func (p *schemaProperty) SetMaxValue(max float64) SubscriptionPropertyBuilder {
+	p.maxValue = &max
+	return p
+}
+
+// IsArray - mark the datatype of the property as an array
+func (p *schemaProperty) IsArray() SubscriptionPropertyBuilder {
+	if p.dataType != "" {
+		p.err = fmt.Errorf("The data type cannot be set to %s, it is already set to %s", DataTypeArray, p.dataType)
+	} else {
+		p.dataType = DataTypeArray
+	}
+	return p
+}
+
+// SetArrayItems - store allowed items for the array
+func (p *schemaProperty) SetArrayItems(items []SubscriptionPropertyBuilder) SubscriptionPropertyBuilder {
+	for _, item := range items {
+		p.AddArrayItem(item)
+	}
+	return p
+}
+
+func (p *schemaProperty) AddArrayItem(item SubscriptionPropertyBuilder) SubscriptionPropertyBuilder {
+	def, err := item.Build()
+	if err == nil {
+		p.items = append(p.items, *def)
+	} else {
+		p.err = err
+	}
+	return p
+}
+
+// SetMinArrayItems - set the minimum items expected in the the array
+func (p *schemaProperty) SetMinArrayItems(min int) SubscriptionPropertyBuilder {
+	if min < 1 {
+		p.err = fmt.Errorf("The min array items must be greater than 0")
+	} else {
+		p.minItems = min
+	}
+	return p
+}
+
+// SetMaxArrayItems - set the maximum items allowed in the the array
+func (p *schemaProperty) SetMaxArrayItems(max int) SubscriptionPropertyBuilder {
+	if max < 1 {
+		p.err = fmt.Errorf("The max array items must be greater than 0")
+	} else {
+		p.maxItems = max
+	}
+	return p
+}
+
+// IsObject - mark the datatype of the property as an object
+func (p *schemaProperty) IsObject() SubscriptionPropertyBuilder {
+	if p.dataType != "" {
+		p.err = fmt.Errorf("The data type cannot be set to %s, it is already set to %s", DataTypeObject, p.dataType)
+	} else {
+		p.dataType = DataTypeObject
+	}
+	return p
+}
+
+func (p *schemaProperty) AddProperty(property SubscriptionPropertyBuilder) SubscriptionPropertyBuilder {
+	def, err := property.Build()
+	if err == nil {
+		if p.properties == nil {
+			p.properties = make(map[string]SubscriptionSchemaPropertyDefinition, 0)
+		}
+		p.properties[def.Name] = *def
+	} else {
+		p.err = err
 	}
 	return p
 }
@@ -146,7 +291,61 @@ func (p *schemaProperty) Build() (*SubscriptionSchemaPropertyDefinition, error) 
 	}
 
 	if p.dataType == "" {
-		return nil, fmt.Errorf("Subscription schema property named %v must have a data type", p.name)
+		return nil, fmt.Errorf("Subscription schema property named %s must have a data type", p.name)
+	}
+
+	var anyOfItems *AnyOfSubscriptionSchemaPropertyDefinitions
+	if p.items != nil {
+		if p.dataType != DataTypeArray {
+			return nil, fmt.Errorf("Array items can only be set for schema property with the data type %s", DataTypeArray)
+		}
+
+		anyOfItems = &AnyOfSubscriptionSchemaPropertyDefinitions{p.items}
+	}
+
+	var requiredProperties []string
+	if p.properties != nil {
+		if p.dataType != DataTypeObject {
+			return nil, fmt.Errorf("Properties can only be set for schema property with the data type %s", DataTypeObject)
+		}
+
+		for _, property := range p.properties {
+			if property.Required {
+				requiredProperties = append(requiredProperties, property.Name)
+			}
+		}
+	}
+
+	if p.minItems > p.maxItems {
+		return nil, fmt.Errorf("Max array items (%d) must be greater than min array items (%d)", p.maxItems, p.minItems)
+	}
+
+	if p.minItems > 0 && p.dataType != DataTypeArray {
+		return nil, fmt.Errorf("Min array items (%d) can only be set for schema property with the data type %s", p.minItems, DataTypeArray)
+	}
+
+	if p.maxItems > 0 && p.dataType != DataTypeArray {
+		return nil, fmt.Errorf("Max array items (%d) can only be set for schema property with the data type %s", p.maxItems, DataTypeArray)
+	}
+
+	if p.minValue != nil && p.dataType != DataTypeInteger && p.dataType != DataTypeNumber {
+		return nil, fmt.Errorf("Min value (%f) can only be set for schema property with the data type %s or %s", *p.minValue, DataTypeNumber, DataTypeInteger)
+	}
+
+	if p.minValue != nil && p.dataType == DataTypeInteger && math.Mod(*p.minValue, 1.0) != 0 {
+		return nil, fmt.Errorf("Min value (%f) can be set only with integer for the data type %s", *p.minValue, DataTypeInteger)
+	}
+
+	if p.maxValue != nil && p.dataType != DataTypeInteger && p.dataType != DataTypeNumber {
+		return nil, fmt.Errorf("Max value (%f) can only be set for schema property with the data type %s or %s", DataTypeNumber, *p.maxValue, DataTypeInteger)
+	}
+
+	if p.maxValue != nil && p.dataType == DataTypeInteger && math.Mod(*p.maxValue, 1.0) != 0 {
+		return nil, fmt.Errorf("Max value (%f) can only be set with integer for the data type %s", *p.maxValue, DataTypeInteger)
+	}
+
+	if p.minValue != nil && p.maxValue != nil && *p.minValue > *p.maxValue {
+		return nil, fmt.Errorf("Max value (%f) must be greater than min value (%f)", *p.maxValue, *p.minValue)
 	}
 
 	// sort if specified to do so
@@ -160,15 +359,23 @@ func (p *schemaProperty) Build() (*SubscriptionSchemaPropertyDefinition, error) 
 	}
 
 	prop := &SubscriptionSchemaPropertyDefinition{
-		Name:          p.name,
-		Type:          p.dataType,
-		Description:   p.description,
-		APICRef:       p.apicRefField,
-		ReadOnly:      p.readOnly,
-		Required:      p.required,
-		Enum:          p.enums,
-		SortEnums:     p.sortEnums,
-		FirstEnumItem: p.firstEnumValue,
+		Name:               p.name,
+		Title:              p.name,
+		Type:               p.dataType,
+		Description:        p.description,
+		APICRef:            p.apicRefField,
+		ReadOnly:           p.readOnly,
+		Required:           p.required,
+		Enum:               p.enums,
+		SortEnums:          p.sortEnums,
+		FirstEnumItem:      p.firstEnumValue,
+		Items:              anyOfItems,
+		MinItems:           p.minItems,
+		MaxItems:           p.maxItems,
+		Minimum:            p.minValue,
+		Maximum:            p.maxValue,
+		Properties:         p.properties,
+		RequiredProperties: requiredProperties,
 	}
 
 	if p.hidden {

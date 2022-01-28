@@ -15,7 +15,7 @@ import (
 // SubscriptionSchema -
 type SubscriptionSchema interface {
 	AddProperty(name, dataType, description, apicRefField string, isRequired bool, enums []string)
-	AddRawProperty(name string, isRequired bool, rawMessage json.RawMessage)
+	AddArrayProperty(name, description, apicRefField string, isRequired bool, itemDefinition SubscriptionSchemaPropertyDefinition)
 	GetProperty(name string) *SubscriptionSchemaPropertyDefinition
 	AddUniqueKey(keyName string)
 	GetSubscriptionName() string
@@ -23,27 +23,30 @@ type SubscriptionSchema interface {
 	rawJSON() (json.RawMessage, error)
 }
 
-// SubscriptionSchemaPropertyDefinition -
-type SubscriptionSchemaPropertyDefinition struct {
-	Type          string          `json:"type"`
-	Description   string          `json:"description"`
-	Enum          []string        `json:"enum,omitempty"`
-	ReadOnly      bool            `json:"readOnly,omitempty"`
-	Format        string          `json:"format,omitempty"`
-	APICRef       string          `json:"x-axway-ref-apic,omitempty"`
-	Name          string          `json:"-"`
-	Required      bool            `json:"-"`
-	SortEnums     bool            `json:"-"`
-	FirstEnumItem string          `json:"-"`
-	RawMessage    json.RawMessage `json:"-"`
+type AnyOfSubscriptionSchemaPropertyDefinitions struct {
+	AnyOf []SubscriptionSchemaPropertyDefinition `json:"anyOf,omitempty"`
 }
 
-func (def *SubscriptionSchemaPropertyDefinition) MarshalJSON() ([]byte, error) {
-	if def.RawMessage != nil {
-		return def.RawMessage, nil
-	} else {
-		return json.Marshal(def)
-	}
+// SubscriptionSchemaPropertyDefinition -
+type SubscriptionSchemaPropertyDefinition struct {
+	Type               string                                          `json:"type"`
+	Title              string                                          `json:"title"`
+	Description        string                                          `json:"description"`
+	Enum               []string                                        `json:"enum,omitempty"`
+	ReadOnly           bool                                            `json:"readOnly,omitempty"`
+	Format             string                                          `json:"format,omitempty"`
+	Properties         map[string]SubscriptionSchemaPropertyDefinition `json:"properties,omitempty"`
+	RequiredProperties []string                                        `json:"required,omitempty"`
+	Items              *AnyOfSubscriptionSchemaPropertyDefinitions     `json:"items,omitempty"` // We use a pointer to avoid generating an empty struct if not set
+	MinItems           int                                             `json:"minItems,omitempty"`
+	MaxItems           int                                             `json:"maxItems,omitempty"`
+	Minimum            *float64                                        `json:"minimum,omitempty"` // We use a pointer to differentiate the "blank value" from a choosen 0 min value
+	Maximum            *float64                                        `json:"maximum,omitempty"` // We use a pointer to differentiate the "blank value" from a choosen 0 max value
+	APICRef            string                                          `json:"x-axway-ref-apic,omitempty"`
+	Name               string                                          `json:"-"`
+	Required           bool                                            `json:"-"`
+	SortEnums          bool                                            `json:"-"`
+	FirstEnumItem      string                                          `json:"-"`
 }
 
 type subscriptionSchema struct {
@@ -72,6 +75,7 @@ func NewSubscriptionSchema(name string) SubscriptionSchema {
 func (ss *subscriptionSchema) AddProperty(name, dataType, description, apicRefField string, isRequired bool, enums []string) {
 	newProp := SubscriptionSchemaPropertyDefinition{
 		Type:        dataType,
+		Title:       name,
 		Description: description,
 		APICRef:     apicRefField,
 	}
@@ -87,10 +91,18 @@ func (ss *subscriptionSchema) AddProperty(name, dataType, description, apicRefFi
 	}
 }
 
-func (ss *subscriptionSchema) AddRawProperty(name string, isRequired bool, rawMessage json.RawMessage) {
+func (ss *subscriptionSchema) AddArrayProperty(name, description, apicRefField string, isRequired bool, itemDefinition SubscriptionSchemaPropertyDefinition) {
 	newProp := SubscriptionSchemaPropertyDefinition{
-		RawMessage: rawMessage,
+		Type:        "array",
+		Title:       name,
+		Description: description,
+		APICRef:     apicRefField,
 	}
+
+	newProp.MinItems = 0
+	newProp.MaxItems = 10
+
+	newProp.Items = &AnyOfSubscriptionSchemaPropertyDefinitions{[]SubscriptionSchemaPropertyDefinition{itemDefinition}}
 
 	ss.Properties[name] = newProp
 
