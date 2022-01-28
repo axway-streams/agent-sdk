@@ -15,7 +15,7 @@ import (
 // SubscriptionSchema -
 type SubscriptionSchema interface {
 	AddProperty(name, dataType, description, apicRefField string, isRequired bool, enums []string)
-	AddNumberProperty(name, description, apicRefField string, isRequired bool, min, max int)
+	AddRawProperty(name string, isRequired bool, rawMessage json.RawMessage)
 	GetProperty(name string) *SubscriptionSchemaPropertyDefinition
 	AddUniqueKey(keyName string)
 	GetSubscriptionName() string
@@ -25,18 +25,25 @@ type SubscriptionSchema interface {
 
 // SubscriptionSchemaPropertyDefinition -
 type SubscriptionSchemaPropertyDefinition struct {
-	Type          string   `json:"type"`
-	Description   string   `json:"description"`
-	Enum          []string `json:"enum,omitempty"`
-	Minimum       int      `json:"minimum"`
-	Maximum       int      `json:"maximum"`
-	ReadOnly      bool     `json:"readOnly,omitempty"`
-	Format        string   `json:"format,omitempty"`
-	APICRef       string   `json:"x-axway-ref-apic,omitempty"`
-	Name          string   `json:"-"`
-	Required      bool     `json:"-"`
-	SortEnums     bool     `json:"-"`
-	FirstEnumItem string   `json:"-"`
+	Type          string          `json:"type"`
+	Description   string          `json:"description"`
+	Enum          []string        `json:"enum,omitempty"`
+	ReadOnly      bool            `json:"readOnly,omitempty"`
+	Format        string          `json:"format,omitempty"`
+	APICRef       string          `json:"x-axway-ref-apic,omitempty"`
+	Name          string          `json:"-"`
+	Required      bool            `json:"-"`
+	SortEnums     bool            `json:"-"`
+	FirstEnumItem string          `json:"-"`
+	RawMessage    json.RawMessage `json:"-"`
+}
+
+func (def *SubscriptionSchemaPropertyDefinition) MarshalJSON() ([]byte, error) {
+	if def.RawMessage != nil {
+		return def.RawMessage, nil
+	} else {
+		return json.Marshal(def)
+	}
 }
 
 type subscriptionSchema struct {
@@ -80,13 +87,9 @@ func (ss *subscriptionSchema) AddProperty(name, dataType, description, apicRefFi
 	}
 }
 
-func (ss *subscriptionSchema) AddNumberProperty(name, description, apicRefField string, isRequired bool, min, max int) {
+func (ss *subscriptionSchema) AddRawProperty(name string, isRequired bool, rawMessage json.RawMessage) {
 	newProp := SubscriptionSchemaPropertyDefinition{
-		Type:        "number",
-		Description: description,
-		APICRef:     apicRefField,
-		Minimum:     min,
-		Maximum:     max,
+		RawMessage: rawMessage,
 	}
 
 	ss.Properties[name] = newProp
