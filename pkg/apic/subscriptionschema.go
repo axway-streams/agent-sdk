@@ -15,6 +15,7 @@ import (
 // SubscriptionSchema -
 type SubscriptionSchema interface {
 	AddProperty(name, dataType, description, apicRefField string, isRequired bool, enums []string)
+	AddNumberProperty(name, description, apicRefField string, isRequired bool, min, max int)
 	GetProperty(name string) *SubscriptionSchemaPropertyDefinition
 	AddUniqueKey(keyName string)
 	GetSubscriptionName() string
@@ -27,6 +28,8 @@ type SubscriptionSchemaPropertyDefinition struct {
 	Type          string   `json:"type"`
 	Description   string   `json:"description"`
 	Enum          []string `json:"enum,omitempty"`
+	Minimum       int      `json:"minimum"`
+	Maximum       int      `json:"maximum"`
 	ReadOnly      bool     `json:"readOnly,omitempty"`
 	Format        string   `json:"format,omitempty"`
 	APICRef       string   `json:"x-axway-ref-apic,omitempty"`
@@ -69,6 +72,23 @@ func (ss *subscriptionSchema) AddProperty(name, dataType, description, apicRefFi
 	if len(enums) > 0 {
 		newProp.Enum = enums
 	}
+	ss.Properties[name] = newProp
+
+	// required slice can't contain duplicates!
+	if isRequired && !util.StringSliceContains(ss.Required, name) {
+		ss.Required = append(ss.Required, name)
+	}
+}
+
+func (ss *subscriptionSchema) AddNumberProperty(name, description, apicRefField string, isRequired bool, min, max int) {
+	newProp := SubscriptionSchemaPropertyDefinition{
+		Type:        "number",
+		Description: description,
+		APICRef:     apicRefField,
+		Minimum:     min,
+		Maximum:     max,
+	}
+
 	ss.Properties[name] = newProp
 
 	// required slice can't contain duplicates!
