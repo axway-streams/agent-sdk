@@ -15,45 +15,59 @@ const (
 	DataTypeObject  = "object"
 )
 
-/*type GenericSubscriptionPropertyBuilder interface {
-	SetName(name string) SubscriptionPropertyBuilder
-	SetDescription(description string) SubscriptionPropertyBuilder
-	SetRequired() SubscriptionPropertyBuilder
-	SetReadOnly() SubscriptionPropertyBuilder
-	SetHidden() SubscriptionPropertyBuilder
-	SetAPICRefField(field string) SubscriptionPropertyBuilder
-	Build() (*SubscriptionSchemaPropertyDefinition, error)
-}*/
-
 // SubscriptionPropertyBuilder - used to build a subscription schmea property
 type SubscriptionPropertyBuilder interface {
 	SetName(name string) SubscriptionPropertyBuilder
 	SetDescription(description string) SubscriptionPropertyBuilder
-	SetEnumValues(values []string) SubscriptionPropertyBuilder
-	SetSortEnumValues() SubscriptionPropertyBuilder
-	SetFirstEnumValue(value string) SubscriptionPropertyBuilder
-	AddEnumValue(value string) SubscriptionPropertyBuilder
 	SetRequired() SubscriptionPropertyBuilder
 	SetReadOnly() SubscriptionPropertyBuilder
 	SetHidden() SubscriptionPropertyBuilder
 	SetAPICRefField(field string) SubscriptionPropertyBuilder
-	IsString() SubscriptionPropertyBuilder
-
-	IsNumber() SubscriptionPropertyBuilder
-	IsInteger() SubscriptionPropertyBuilder
-	SetMinValue(min float64) SubscriptionPropertyBuilder
-	SetMaxValue(max float64) SubscriptionPropertyBuilder
-
-	IsArray() SubscriptionPropertyBuilder
-	SetArrayItems(items []SubscriptionPropertyBuilder) SubscriptionPropertyBuilder
-	AddArrayItem(item SubscriptionPropertyBuilder) SubscriptionPropertyBuilder
-	SetMinArrayItems(min int) SubscriptionPropertyBuilder
-	SetMaxArrayItems(max int) SubscriptionPropertyBuilder
-
-	IsObject() SubscriptionPropertyBuilder
-	AddProperty(property SubscriptionPropertyBuilder) SubscriptionPropertyBuilder
-
 	Build() (*SubscriptionSchemaPropertyDefinition, error)
+}
+
+type SubscriptionStringPropertyBuilder interface {
+	SubscriptionPropertyBuilder
+	SetEnumValues(values []string) SubscriptionStringPropertyBuilder
+	SetSortEnumValues() SubscriptionStringPropertyBuilder
+	SetFirstEnumValue(value string) SubscriptionStringPropertyBuilder
+	AddEnumValue(value string) SubscriptionStringPropertyBuilder
+}
+
+type SubscriptionNumberPropertyBuilder interface {
+	SubscriptionPropertyBuilder
+	SetMinValue(min float64) SubscriptionNumberPropertyBuilder
+	SetMaxValue(max float64) SubscriptionNumberPropertyBuilder
+}
+
+type SubscriptionIntegerPropertyBuilder interface {
+	SubscriptionPropertyBuilder
+	SetMinValue(min int64) SubscriptionIntegerPropertyBuilder
+	SetMaxValue(max int64) SubscriptionIntegerPropertyBuilder
+}
+
+type SubscriptionArrayPropertyBuilder interface {
+	SubscriptionPropertyBuilder
+	AddArrayItem(item SubscriptionPropertyBuilder) SubscriptionArrayPropertyBuilder
+	SetMinArrayItems(min int) SubscriptionArrayPropertyBuilder
+	SetMaxArrayItems(max int) SubscriptionArrayPropertyBuilder
+}
+
+type SubscriptionObjectPropertyBuilder interface {
+	SubscriptionPropertyBuilder
+	AddProperty(property SubscriptionPropertyBuilder) SubscriptionObjectPropertyBuilder
+}
+
+type stringSchemaProperty struct {
+	SubscriptionPropertyBuilder
+}
+
+type objectSchemaProperty struct {
+	SubscriptionObjectPropertyBuilder
+}
+
+func NewSubscriptionSchemaObjectPropertyBuilder() SubscriptionObjectPropertyBuilder {
+	return &objectSchemaProperty{}
 }
 
 // schemaProperty - holds all the info needed to create a subscrition schema property
