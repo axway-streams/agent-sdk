@@ -18,39 +18,6 @@ type SubscriptionPropertyBuilder interface {
 	Build() (*SubscriptionSchemaPropertyDefinition, error)
 }
 
-type stringPropertyBuilder struct {
-	schemaProperty *propertyBuilder
-	sortEnums      bool
-	firstEnumValue string
-	enums          []string
-	SubscriptionPropertyBuilder
-}
-
-type numberPropertyBuilder struct {
-	schemaProperty *propertyBuilder
-	minValue       *float64 // We use a pointer to differentiate the "blank value" from a choosen 0 min value
-	maxValue       *float64 // We use a pointer to differentiate the "blank value" from a choosen 0 max value
-	SubscriptionPropertyBuilder
-}
-
-type integerPropertyBuilder struct {
-	numberPropertyBuilder
-}
-
-type objectPropertyBuilder struct {
-	schemaProperty *propertyBuilder
-	properties     map[string]SubscriptionSchemaPropertyDefinition
-	SubscriptionPropertyBuilder
-}
-
-type arrayPropertyBuilder struct {
-	schemaProperty *propertyBuilder
-	items          []SubscriptionSchemaPropertyDefinition
-	minItems       int
-	maxItems       int
-	SubscriptionPropertyBuilder
-}
-
 // schemaProperty - holds all the info needed to create a subscrition schema property
 type propertyBuilder struct {
 	err          error
@@ -139,6 +106,14 @@ func (p *propertyBuilder) Build() (*SubscriptionSchemaPropertyDefinition, error)
   string property datatype
 */
 
+type stringPropertyBuilder struct {
+	schemaProperty *propertyBuilder
+	sortEnums      bool
+	firstEnumValue string
+	enums          []string
+	SubscriptionPropertyBuilder
+}
+
 func (p *propertyBuilder) IsString() *stringPropertyBuilder {
 	p.dataType = DataTypeString
 	return &stringPropertyBuilder{
@@ -218,6 +193,13 @@ func (p *stringPropertyBuilder) Build() (def *SubscriptionSchemaPropertyDefiniti
   number property datatype builder
 */
 
+type numberPropertyBuilder struct {
+	schemaProperty *propertyBuilder
+	minValue       *float64 // We use a pointer to differentiate the "blank value" from a choosen 0 min value
+	maxValue       *float64 // We use a pointer to differentiate the "blank value" from a choosen 0 max value
+	SubscriptionPropertyBuilder
+}
+
 func (p *propertyBuilder) IsNumber() *numberPropertyBuilder {
 	p.dataType = DataTypeNumber
 	return &numberPropertyBuilder{
@@ -256,6 +238,11 @@ func (p *numberPropertyBuilder) Build() (def *SubscriptionSchemaPropertyDefiniti
 /**
   integer property datatype builder
 */
+
+type integerPropertyBuilder struct {
+	numberPropertyBuilder
+}
+
 func (p *propertyBuilder) IsInteger() *integerPropertyBuilder {
 	p.dataType = DataTypeInteger
 	return &integerPropertyBuilder{
@@ -279,25 +266,17 @@ func (p *integerPropertyBuilder) SetMaxValue(max int64) *integerPropertyBuilder 
 	return p
 }
 
-// Build - create a number SubscriptionSchemaPropertyDefinition for use in the subscription schema builder
-func (p *integerPropertyBuilder) Build() (def *SubscriptionSchemaPropertyDefinition, err error) {
-	def, err = p.schemaProperty.Build()
-	if err != nil {
-		return
-	}
-
-	if p.minValue != nil && p.maxValue != nil && *p.minValue > *p.maxValue {
-		return nil, fmt.Errorf("Max value (%f) must be greater than min value (%f)", *p.maxValue, *p.minValue)
-	}
-
-	def.Minimum = p.minValue
-	def.Maximum = p.maxValue
-	return def, err
-}
-
 /**
   array property datatype builder
 */
+
+type arrayPropertyBuilder struct {
+	schemaProperty *propertyBuilder
+	items          []SubscriptionSchemaPropertyDefinition
+	minItems       *uint
+	maxItems       *uint
+	SubscriptionPropertyBuilder
+}
 
 func (p *propertyBuilder) IsArray() *arrayPropertyBuilder {
 	p.dataType = DataTypeArray
@@ -317,21 +296,17 @@ func (p *arrayPropertyBuilder) AddArrayItem(item SubscriptionPropertyBuilder) *a
 }
 
 // SetMinArrayItems - set the minimum items expected in the the array
-func (p *arrayPropertyBuilder) SetMinArrayItems(min int) *arrayPropertyBuilder {
-	if min < 1 {
-		p.schemaProperty.err = fmt.Errorf("The min array items must be greater than 0")
-	} else {
-		p.minItems = min
-	}
+func (p *arrayPropertyBuilder) SetMinArrayItems(min uint) *arrayPropertyBuilder {
+	p.minItems = &min
 	return p
 }
 
 // SetMaxArrayItems - set the maximum items allowed in the the array
-func (p *arrayPropertyBuilder) SetMaxArrayItems(max int) *arrayPropertyBuilder {
+func (p *arrayPropertyBuilder) SetMaxArrayItems(max uint) *arrayPropertyBuilder {
 	if max < 1 {
 		p.schemaProperty.err = fmt.Errorf("The max array items must be greater than 0")
 	} else {
-		p.maxItems = max
+		p.maxItems = &max
 	}
 	return p
 }
@@ -347,8 +322,8 @@ func (p *arrayPropertyBuilder) Build() (def *SubscriptionSchemaPropertyDefinitio
 		anyOfItems = &AnyOfSubscriptionSchemaPropertyDefinitions{p.items}
 	}
 
-	if p.minItems > p.maxItems {
-		return nil, fmt.Errorf("Max array items (%d) must be greater than min array items (%d)", p.maxItems, p.minItems)
+	if p.minItems != nil && p.maxItems != nil && *p.minItems > *p.maxItems {
+		return nil, fmt.Errorf("Max array items (%d) must be greater than min array items (%d)", *p.maxItems, *p.minItems)
 	}
 
 	def.Items = anyOfItems
@@ -360,6 +335,12 @@ func (p *arrayPropertyBuilder) Build() (def *SubscriptionSchemaPropertyDefinitio
 /**
   object property datatype builder
 */
+
+type objectPropertyBuilder struct {
+	schemaProperty *propertyBuilder
+	properties     map[string]SubscriptionSchemaPropertyDefinition
+	SubscriptionPropertyBuilder
+}
 
 func (p *propertyBuilder) IsObject() *objectPropertyBuilder {
 	p.dataType = DataTypeObject
@@ -390,10 +371,6 @@ func (p *objectPropertyBuilder) Build() (def *SubscriptionSchemaPropertyDefiniti
 
 	var requiredProperties []string
 	if p.properties != nil {
-		if p.schemaProperty.dataType != DataTypeObject {
-			return nil, fmt.Errorf("Properties can only be set for schema property with the data type %s", DataTypeObject)
-		}
-
 		for _, property := range p.properties {
 			if property.Required {
 				requiredProperties = append(requiredProperties, property.Name)

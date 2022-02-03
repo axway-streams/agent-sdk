@@ -15,7 +15,6 @@ import (
 // SubscriptionSchema -
 type SubscriptionSchema interface {
 	AddProperty(name, dataType, description, apicRefField string, isRequired bool, enums []string)
-	AddArrayProperty(name, description, apicRefField string, isRequired bool, itemDefinition SubscriptionSchemaPropertyDefinition)
 	GetProperty(name string) *SubscriptionSchemaPropertyDefinition
 	AddUniqueKey(keyName string)
 	GetSubscriptionName() string
@@ -37,11 +36,11 @@ type SubscriptionSchemaPropertyDefinition struct {
 	Format             string                                          `json:"format,omitempty"`
 	Properties         map[string]SubscriptionSchemaPropertyDefinition `json:"properties,omitempty"`
 	RequiredProperties []string                                        `json:"required,omitempty"`
-	Items              *AnyOfSubscriptionSchemaPropertyDefinitions     `json:"items,omitempty"` // We use a pointer to avoid generating an empty struct if not set
-	MinItems           int                                             `json:"minItems,omitempty"`
-	MaxItems           int                                             `json:"maxItems,omitempty"`
-	Minimum            *float64                                        `json:"minimum,omitempty"` // We use a pointer to differentiate the "blank value" from a choosen 0 min value
-	Maximum            *float64                                        `json:"maximum,omitempty"` // We use a pointer to differentiate the "blank value" from a choosen 0 max value
+	Items              *AnyOfSubscriptionSchemaPropertyDefinitions     `json:"items,omitempty"`    // We use a pointer to avoid generating an empty struct if not set
+	MinItems           *uint                                           `json:"minItems,omitempty"` // We use a pointer to differentiate the "blank value" from a choosen 0 min value
+	MaxItems           *uint                                           `json:"maxItems,omitempty"` // We use a pointer to differentiate the "blank value" from a choosen 0 min value
+	Minimum            *float64                                        `json:"minimum,omitempty"`  // We use a pointer to differentiate the "blank value" from a choosen 0 min value
+	Maximum            *float64                                        `json:"maximum,omitempty"`  // We use a pointer to differentiate the "blank value" from a choosen 0 max value
 	APICRef            string                                          `json:"x-axway-ref-apic,omitempty"`
 	Name               string                                          `json:"-"`
 	Required           bool                                            `json:"-"`
@@ -83,27 +82,6 @@ func (ss *subscriptionSchema) AddProperty(name, dataType, description, apicRefFi
 	if len(enums) > 0 {
 		newProp.Enum = enums
 	}
-	ss.Properties[name] = newProp
-
-	// required slice can't contain duplicates!
-	if isRequired && !util.StringSliceContains(ss.Required, name) {
-		ss.Required = append(ss.Required, name)
-	}
-}
-
-func (ss *subscriptionSchema) AddArrayProperty(name, description, apicRefField string, isRequired bool, itemDefinition SubscriptionSchemaPropertyDefinition) {
-	newProp := SubscriptionSchemaPropertyDefinition{
-		Type:        "array",
-		Title:       name,
-		Description: description,
-		APICRef:     apicRefField,
-	}
-
-	newProp.MinItems = 0
-	newProp.MaxItems = 10
-
-	newProp.Items = &AnyOfSubscriptionSchemaPropertyDefinitions{[]SubscriptionSchemaPropertyDefinition{itemDefinition}}
-
 	ss.Properties[name] = newProp
 
 	// required slice can't contain duplicates!
